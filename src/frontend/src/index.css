@@ -1,0 +1,153 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* BRUTAL Brand - OKLCH Color System */
+    --background: 0% 0 0; /* Pure black */
+    --foreground: 98% 0 0; /* Near white */
+
+    --card: 15% 0.01 0; /* Very dark gray */
+    --card-foreground: 98% 0 0;
+
+    --popover: 15% 0.01 0;
+    --popover-foreground: 98% 0 0;
+
+    --primary: 65% 0.25 350; /* Neon pink */
+    --primary-foreground: 98% 0 0;
+
+    --secondary: 70% 0.20 210; /* Electric blue */
+    --secondary-foreground: 98% 0 0;
+
+    --muted: 25% 0.02 0;
+    --muted-foreground: 70% 0.02 0;
+
+    --accent: 65% 0.25 350;
+    --accent-foreground: 98% 0 0;
+
+    --destructive: 60% 0.22 25; /* Red */
+    --destructive-foreground: 98% 0 0;
+
+    --border: 30% 0.02 0;
+    --input: 30% 0.02 0;
+    --ring: 65% 0.25 350;
+
+    --radius: 0rem; /* Brutalist: no rounded corners */
+
+    /* Chart colors */
+    --chart-1: 65% 0.25 350; /* Neon pink */
+    --chart-2: 70% 0.20 210; /* Electric blue */
+    --chart-3: 75% 0.18 160; /* Cyan */
+    --chart-4: 70% 0.20 60; /* Yellow */
+    --chart-5: 60% 0.22 25; /* Red */
+  }
+
+  .dark {
+    /* Dark mode uses same values for BRUTAL theme */
+    --background: 0% 0 0;
+    --foreground: 98% 0 0;
+
+    --card: 15% 0.01 0;
+    --card-foreground: 98% 0 0;
+
+    --popover: 15% 0.01 0;
+    --popover-foreground: 98% 0 0;
+
+    --primary: 65% 0.25 350;
+    --primary-foreground: 98% 0 0;
+
+    --secondary: 70% 0.20 210;
+    --secondary-foreground: 98% 0 0;
+
+    --muted: 25% 0.02 0;
+    --muted-foreground: 70% 0.02 0;
+
+    --accent: 65% 0.25 350;
+    --accent-foreground: 98% 0 0;
+
+    --destructive: 60% 0.22 25;
+    --destructive-foreground: 98% 0 0;
+
+    --border: 30% 0.02 0;
+    --input: 30% 0.02 0;
+    --ring: 65% 0.25 350;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    font-feature-settings: "kern" 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+  
+  /* Ensure no horizontal scroll on mobile */
+  html {
+    overflow-x: hidden;
+  }
+}
+
+@layer utilities {
+  /* Neon glow effects - optimized */
+  .neon-glow-pink {
+    text-shadow: 0 0 10px oklch(var(--primary)), 0 0 20px oklch(var(--primary));
+  }
+
+  .neon-glow-blue {
+    text-shadow: 0 0 10px oklch(var(--secondary)), 0 0 20px oklch(var(--secondary));
+  }
+
+  .neon-glow-green {
+    text-shadow: 0 0 10px oklch(75% 0.20 145), 0 0 20px oklch(75% 0.20 145);
+  }
+
+  .neon-glow-yellow {
+    text-shadow: 0 0 10px oklch(80% 0.18 90), 0 0 20px oklch(80% 0.18 90);
+  }
+
+  .neon-glow-red {
+    text-shadow: 0 0 10px oklch(60% 0.22 25), 0 0 20px oklch(60% 0.22 25);
+  }
+
+  /* Brutalist card styles */
+  .brutal-card {
+    @apply bg-card border-border shadow-brutal;
+  }
+
+  .brutal-card-neon {
+    box-shadow: 0 0 20px oklch(var(--primary) / 0.3), 0 0 40px oklch(var(--primary) / 0.1);
+  }
+
+  /* Quick fade animation */
+  .animate-quick-fade {
+    animation: quickFade 0.3s ease-in;
+  }
+
+  @keyframes quickFade {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Mobile-friendly text wrapping */
+  .break-words {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+}
