@@ -18,6 +18,7 @@ export function useCheckOnboardingAndCheckInStatus() {
     isFirstLoginOfDay: boolean;
     lastLoginWasSober: bigint;
     needsFollowUp: boolean;
+    soberDaysTarget: bigint;
   }>({
     queryKey: ['onboardingCheckInStatus'],
     queryFn: async () => {
@@ -103,6 +104,7 @@ export function useSaveCallerUserProfile() {
       console.log('Profile save successful, invalidating queries...');
       queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
       queryClient.invalidateQueries({ queryKey: ['onboardingCheckInStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['soberDaysTarget'] });
     },
     onError: (error) => {
       console.error('Profile save mutation error:', error);
@@ -115,7 +117,12 @@ export function useSubmitCheckIn() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: { date: bigint; sober: boolean; drinks: bigint; mood: any }) => {
+    mutationFn: async (params: { 
+      date: bigint; 
+      sober: boolean; 
+      drinks: bigint; 
+      mood: any;
+    }) => {
       if (!actor) {
         throw new Error('Backend connection not ready. Please wait and try again.');
       }
@@ -128,8 +135,17 @@ export function useSubmitCheckIn() {
       };
       
       console.log('Submitting check-in...', entry);
+      
+      // Submit to backend
       const result = await actor.submitCheckIn(entry);
       console.log('Check-in submitted successfully:', result);
+      
+      // Cache the message from backend response if available
+      if (result.message && result.message.trim() !== '') {
+        queryClient.setQueryData(['latestBrutalFriendFeedback'], result.message);
+        console.log('Cached backend message:', result.message);
+      }
+      
       return result;
     },
     onSuccess: () => {
@@ -148,14 +164,23 @@ export function useSubmitFollowUpCheckIn() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (drinks: bigint) => {
+    mutationFn: async (params: { 
+      drinks: bigint;
+    }) => {
       if (!actor) {
         throw new Error('Backend connection not ready. Please wait and try again.');
       }
       
-      console.log('Submitting follow-up check-in...', drinks);
-      const result = await actor.submitFollowUpCheckIn(drinks);
+      console.log('Submitting follow-up check-in...', params.drinks);
+      const result = await actor.submitFollowUpCheckIn(params.drinks);
       console.log('Follow-up check-in submitted successfully:', result);
+      
+      // Cache the message from backend response if available
+      if (result.message && result.message.trim() !== '') {
+        queryClient.setQueryData(['latestBrutalFriendFeedback'], result.message);
+        console.log('Cached backend message:', result.message);
+      }
+      
       return result;
     },
     onSuccess: () => {
@@ -248,21 +273,25 @@ export function useGetLatestBrutalFriendFeedback() {
     queryFn: async () => {
       if (!actor) return '';
       try {
-        return await actor.getLatestBrutalFriendFeedback();
+        // Fetch the latest feedback from backend
+        const result = await actor.getLatestBrutalFriendFeedback();
+        console.log('Fetched latest brutal friend feedback from backend:', result);
+        return result || '';
       } catch (error) {
         console.error('Failed to fetch latest brutal friend feedback:', error);
         return '';
       }
     },
     enabled: actorInitialized,
-    refetchOnMount: 'always',
     staleTime: 0,
+    refetchOnMount: 'always',
     ...RETRY_CONFIG,
   });
 }
 
 export function useGetMotivationMessage() {
   const { actor } = useActor();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async () => {
@@ -270,11 +299,42 @@ export function useGetMotivationMessage() {
         throw new Error('Backend connection not ready. Please wait and try again.');
       }
       try {
-        return await actor.getMotivationMessage();
+        const result = await actor.getMotivationMessage();
+        
+        // Cache the message from backend in React Query cache if not limit reached
+        if (!result.isLimitReached && result.message && result.message.trim() !== '') {
+          queryClient.setQueryData(['cachedMotivationMessage'], result.message);
+        }
+        
+        return result;
       } catch (error) {
         console.error('Failed to fetch motivation message:', error);
         throw error;
       }
     },
+  });
+}
+
+export function useGetSoberDaysTarget() {
+  const { actor, isFetching: actorFetching } = useActor();
+  const actorInitialized = !!actor && !actorFetching;
+
+  return useQuery<bigint>({
+    queryKey: ['soberDaysTarget'],
+    queryFn: async () => {
+      if (!actor) return BigInt(30);
+      try {
+        const result = await actor.getSoberDaysTarget();
+        console.log('Sober days target fetched:', result);
+        return result;
+      } catch (error) {
+        console.error('Failed to fetch sober days target:', error);
+        return BigInt(30);
+      }
+    },
+    enabled: actorInitialized,
+    refetchOnMount: 'always',
+    staleTime: 5 * 60 * 1000,
+    ...RETRY_CONFIG,
   });
 }

@@ -23,10 +23,34 @@ export interface CheckInEntry {
   'sober' : boolean,
   'drinks' : bigint,
 }
+export interface DayCheckInResponse {
+  'date' : bigint,
+  'message' : string,
+  'totalDrinks' : bigint,
+  'feedbackMatrixEntry' : FeedbackMatrixEntry,
+  'isFollowUp' : boolean,
+}
+export interface DayCheckinStatus {
+  '_firstCheckTime' : [] | [bigint],
+  'hasCheckedIn' : boolean,
+  'numberOfChecks' : bigint,
+  'drinks' : bigint,
+}
 export type DrinkingBaseline = { 'low' : null } |
   { 'high' : null } |
   { 'avoidant' : null } |
   { 'medium' : null };
+export interface FeedbackMatrixEntry {
+  'secondarySubstance' : [] | [string],
+  'baselineTier' : DrinkingBaseline,
+  'isWeekend' : [] | [boolean],
+  'ageRange' : string,
+  'daysUntilFullMoon' : [] | [bigint],
+  'streakRatio' : [] | [string],
+  'message' : string,
+  'motivation' : MotivationLens,
+  'chanceOfDrinkingTomorrow' : [] | [string],
+}
 export type Mood = { 'sad' : null } |
   { 'happy' : null } |
   { 'neutral' : null };
@@ -47,7 +71,7 @@ export interface OnboardingAnswers {
 export interface UserProfile {
   'lastCheckInDate' : [] | [bigint],
   'onboardingAnswers' : OnboardingAnswers,
-  'currentDayCheckInStatus' : [] | [boolean],
+  'currentDayCheckInStatus' : [] | [DayCheckinStatus],
   'hasCompletedOnboarding' : boolean,
 }
 export type UserRole = { 'admin' : null } |
@@ -55,6 +79,7 @@ export type UserRole = { 'admin' : null } |
   { 'guest' : null };
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
+  'addFeedbackMatrixEntry' : ActorMethod<[FeedbackMatrixEntry], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'checkOnboardingAndCheckInStatus' : ActorMethod<
     [],
@@ -64,6 +89,7 @@ export interface _SERVICE {
       'isDailyCheckInCompleted' : boolean,
       'needsOnboarding' : boolean,
       'lastLoginWasSober' : bigint,
+      'soberDaysTarget' : bigint,
       'needsFollowUp' : boolean,
     }
   >,
@@ -90,15 +116,13 @@ export interface _SERVICE {
       'currentStreak' : bigint,
     }
   >,
+  'getSoberDaysTarget' : ActorMethod<[], bigint>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'getUserTimeZone' : ActorMethod<[], string>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
-  'submitCheckIn' : ActorMethod<
-    [CheckInEntry],
-    { 'date' : bigint, 'message' : string, 'totalDrinks' : bigint }
-  >,
-  'submitFollowUpCheckIn' : ActorMethod<[bigint], string>,
+  'submitCheckIn' : ActorMethod<[CheckInEntry], DayCheckInResponse>,
+  'submitFollowUpCheckIn' : ActorMethod<[bigint], DayCheckInResponse>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

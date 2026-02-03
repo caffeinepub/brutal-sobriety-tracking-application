@@ -36,12 +36,12 @@ export default function UnifiedHeaderSection() {
       <Card className="border-2 border-primary bg-card/50 backdrop-blur-sm">
         <CardContent className="p-4 sm:p-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-            {/* Brutal Friend Feedback - Takes 2 columns on large screens */}
+            {/* Daily Feedback - Takes 2 columns on large screens */}
             <div className="lg:col-span-2 space-y-3">
               <div className="flex items-center gap-2 mb-3">
                 <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
                 <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider neon-glow-pink">
-                  YOUR BRUTALLY HONEST FRIEND
+                  Daily Feedback
                 </h3>
               </div>
               
@@ -105,4 +105,3 @@ export default function UnifiedHeaderSection() {
     </>
   );
 }
-

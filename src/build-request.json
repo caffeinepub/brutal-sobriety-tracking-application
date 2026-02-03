@@ -1,0 +1,72 @@
+{
+  "kind": "build_request",
+  "title": "Add a Feedback Matrix inspector showing message counts per user input combination",
+  "priority": "normal",
+  "requirements": [
+    {
+      "id": "REQ-1",
+      "text": "Add a frontend-only “Feedback Matrix Inspector” view that loads `frontend/public/feedbackMatrix.json` via the existing `loadFeedbackMatrix()` loader and displays, for each unique user-input combination, how many feedback messages exist in the matrix.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "can you see inside the feedbackMatrix.json, how many sentences are there for each user input?"
+        ]
+      },
+      "acceptanceCriteria": [
+        "The inspector groups entries by (ageRange, motivation, baselineTier, secondarySubstance) using the same fields used by the matrix selection logic.",
+        "For each group, the UI shows the group key and the total count of messages available for that key.",
+        "The inspector view renders even when the matrix fails to load, showing a clear error state in English (and does not crash the app)."
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "In the Feedback Matrix Inspector, also display a per-entry sentence count for each message (computed on the frontend by splitting the message text into sentences) and a per-group total sentence count.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "how many sentences are there for each user input?"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Each message row shows: the message text and a computed sentence count.",
+        "Each group row shows: message count and total sentences across messages in that group.",
+        "Sentence counting is deterministic and documented in code comments (e.g., split on ., !, ? while ignoring empty results)."
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Provide a safe way to access the Feedback Matrix Inspector from the app without modifying authentication internals: add a minimal route or conditional rendering entry point (for example, a `#/debug/feedback-matrix` route or a `?debug=feedback-matrix` flag) and ensure it does not appear in normal user flow by default.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ]
+      },
+      "acceptanceCriteria": [
+        "A developer can navigate directly to the inspector using the chosen URL/flag mechanism.",
+        "Normal onboarding/dashboard flows are unchanged unless the debug route/flag is used.",
+        "No changes are made to immutable frontend paths listed in SYSTEM_CONTEXT."
+      ]
+    }
+  ],
+  "constraints": [
+    "Do not edit files in `frontend.immutablePaths` (e.g., `frontend/src/main.tsx`, `frontend/src/hooks/useActor.ts`, `frontend/src/hooks/useInternetIdentity.ts[x]`, and `frontend/src/components/ui`).",
+    "Use the existing `frontend/src/lib/feedbackMatrixLoader.ts` to load `feedbackMatrix.json`; do not add backend endpoints for this.",
+    "Keep all user-facing text in English."
+  ],
+  "nonGoals": [
+    "Do not change the content or schema of `frontend/public/feedbackMatrix.json` as part of this request.",
+    "Do not change the feedback selection/randomization logic; this request is only for inspection/visibility.",
+    "Do not add new authentication or admin-role features."
+  ],
+  "imageRequirements": {
+    "required": [],
+    "edits": []
+  }
+}

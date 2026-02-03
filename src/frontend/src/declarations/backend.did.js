@@ -8,11 +8,6 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
-export const UserRole = IDL.Variant({
-  'admin' : IDL.Null,
-  'user' : IDL.Null,
-  'guest' : IDL.Null,
-});
 export const DrinkingBaseline = IDL.Variant({
   'low' : IDL.Null,
   'high' : IDL.Null,
@@ -26,6 +21,22 @@ export const MotivationLens = IDL.Variant({
   'family' : IDL.Null,
   'health' : IDL.Null,
 });
+export const FeedbackMatrixEntry = IDL.Record({
+  'secondarySubstance' : IDL.Opt(IDL.Text),
+  'baselineTier' : DrinkingBaseline,
+  'isWeekend' : IDL.Opt(IDL.Bool),
+  'ageRange' : IDL.Text,
+  'daysUntilFullMoon' : IDL.Opt(IDL.Nat),
+  'streakRatio' : IDL.Opt(IDL.Text),
+  'message' : IDL.Text,
+  'motivation' : MotivationLens,
+  'chanceOfDrinkingTomorrow' : IDL.Opt(IDL.Text),
+});
+export const UserRole = IDL.Variant({
+  'admin' : IDL.Null,
+  'user' : IDL.Null,
+  'guest' : IDL.Null,
+});
 export const OnboardingAnswers = IDL.Record({
   'drinksPerWeek' : IDL.Text,
   'secondarySubstance' : IDL.Opt(IDL.Text),
@@ -35,10 +46,16 @@ export const OnboardingAnswers = IDL.Record({
   'motivation' : MotivationLens,
   'timeZone' : IDL.Text,
 });
+export const DayCheckinStatus = IDL.Record({
+  '_firstCheckTime' : IDL.Opt(IDL.Nat64),
+  'hasCheckedIn' : IDL.Bool,
+  'numberOfChecks' : IDL.Nat,
+  'drinks' : IDL.Nat,
+});
 export const UserProfile = IDL.Record({
   'lastCheckInDate' : IDL.Opt(IDL.Nat64),
   'onboardingAnswers' : OnboardingAnswers,
-  'currentDayCheckInStatus' : IDL.Opt(IDL.Bool),
+  'currentDayCheckInStatus' : IDL.Opt(DayCheckinStatus),
   'hasCompletedOnboarding' : IDL.Bool,
 });
 export const Mood = IDL.Variant({
@@ -59,9 +76,17 @@ export const CheckInEntry = IDL.Record({
   'sober' : IDL.Bool,
   'drinks' : IDL.Nat,
 });
+export const DayCheckInResponse = IDL.Record({
+  'date' : IDL.Nat64,
+  'message' : IDL.Text,
+  'totalDrinks' : IDL.Nat,
+  'feedbackMatrixEntry' : FeedbackMatrixEntry,
+  'isFollowUp' : IDL.Bool,
+});
 
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+  'addFeedbackMatrixEntry' : IDL.Func([FeedbackMatrixEntry], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'checkOnboardingAndCheckInStatus' : IDL.Func(
       [],
@@ -72,6 +97,7 @@ export const idlService = IDL.Service({
           'isDailyCheckInCompleted' : IDL.Bool,
           'needsOnboarding' : IDL.Bool,
           'lastLoginWasSober' : IDL.Int,
+          'soberDaysTarget' : IDL.Nat,
           'needsFollowUp' : IDL.Bool,
         }),
       ],
@@ -106,6 +132,7 @@ export const idlService = IDL.Service({
       ],
       ['query'],
     ),
+  'getSoberDaysTarget' : IDL.Func([], [IDL.Nat], ['query']),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
       [IDL.Opt(UserProfile)],
@@ -114,28 +141,13 @@ export const idlService = IDL.Service({
   'getUserTimeZone' : IDL.Func([], [IDL.Text], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
-  'submitCheckIn' : IDL.Func(
-      [CheckInEntry],
-      [
-        IDL.Record({
-          'date' : IDL.Nat64,
-          'message' : IDL.Text,
-          'totalDrinks' : IDL.Nat,
-        }),
-      ],
-      [],
-    ),
-  'submitFollowUpCheckIn' : IDL.Func([IDL.Nat], [IDL.Text], []),
+  'submitCheckIn' : IDL.Func([CheckInEntry], [DayCheckInResponse], []),
+  'submitFollowUpCheckIn' : IDL.Func([IDL.Nat], [DayCheckInResponse], []),
 });
 
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
-  const UserRole = IDL.Variant({
-    'admin' : IDL.Null,
-    'user' : IDL.Null,
-    'guest' : IDL.Null,
-  });
   const DrinkingBaseline = IDL.Variant({
     'low' : IDL.Null,
     'high' : IDL.Null,
@@ -149,6 +161,22 @@ export const idlFactory = ({ IDL }) => {
     'family' : IDL.Null,
     'health' : IDL.Null,
   });
+  const FeedbackMatrixEntry = IDL.Record({
+    'secondarySubstance' : IDL.Opt(IDL.Text),
+    'baselineTier' : DrinkingBaseline,
+    'isWeekend' : IDL.Opt(IDL.Bool),
+    'ageRange' : IDL.Text,
+    'daysUntilFullMoon' : IDL.Opt(IDL.Nat),
+    'streakRatio' : IDL.Opt(IDL.Text),
+    'message' : IDL.Text,
+    'motivation' : MotivationLens,
+    'chanceOfDrinkingTomorrow' : IDL.Opt(IDL.Text),
+  });
+  const UserRole = IDL.Variant({
+    'admin' : IDL.Null,
+    'user' : IDL.Null,
+    'guest' : IDL.Null,
+  });
   const OnboardingAnswers = IDL.Record({
     'drinksPerWeek' : IDL.Text,
     'secondarySubstance' : IDL.Opt(IDL.Text),
@@ -158,10 +186,16 @@ export const idlFactory = ({ IDL }) => {
     'motivation' : MotivationLens,
     'timeZone' : IDL.Text,
   });
+  const DayCheckinStatus = IDL.Record({
+    '_firstCheckTime' : IDL.Opt(IDL.Nat64),
+    'hasCheckedIn' : IDL.Bool,
+    'numberOfChecks' : IDL.Nat,
+    'drinks' : IDL.Nat,
+  });
   const UserProfile = IDL.Record({
     'lastCheckInDate' : IDL.Opt(IDL.Nat64),
     'onboardingAnswers' : OnboardingAnswers,
-    'currentDayCheckInStatus' : IDL.Opt(IDL.Bool),
+    'currentDayCheckInStatus' : IDL.Opt(DayCheckinStatus),
     'hasCompletedOnboarding' : IDL.Bool,
   });
   const Mood = IDL.Variant({
@@ -182,9 +216,17 @@ export const idlFactory = ({ IDL }) => {
     'sober' : IDL.Bool,
     'drinks' : IDL.Nat,
   });
+  const DayCheckInResponse = IDL.Record({
+    'date' : IDL.Nat64,
+    'message' : IDL.Text,
+    'totalDrinks' : IDL.Nat,
+    'feedbackMatrixEntry' : FeedbackMatrixEntry,
+    'isFollowUp' : IDL.Bool,
+  });
   
   return IDL.Service({
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+    'addFeedbackMatrixEntry' : IDL.Func([FeedbackMatrixEntry], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'checkOnboardingAndCheckInStatus' : IDL.Func(
         [],
@@ -195,6 +237,7 @@ export const idlFactory = ({ IDL }) => {
             'isDailyCheckInCompleted' : IDL.Bool,
             'needsOnboarding' : IDL.Bool,
             'lastLoginWasSober' : IDL.Int,
+            'soberDaysTarget' : IDL.Nat,
             'needsFollowUp' : IDL.Bool,
           }),
         ],
@@ -229,6 +272,7 @@ export const idlFactory = ({ IDL }) => {
         ],
         ['query'],
       ),
+    'getSoberDaysTarget' : IDL.Func([], [IDL.Nat], ['query']),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
         [IDL.Opt(UserProfile)],
@@ -237,18 +281,8 @@ export const idlFactory = ({ IDL }) => {
     'getUserTimeZone' : IDL.Func([], [IDL.Text], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
-    'submitCheckIn' : IDL.Func(
-        [CheckInEntry],
-        [
-          IDL.Record({
-            'date' : IDL.Nat64,
-            'message' : IDL.Text,
-            'totalDrinks' : IDL.Nat,
-          }),
-        ],
-        [],
-      ),
-    'submitFollowUpCheckIn' : IDL.Func([IDL.Nat], [IDL.Text], []),
+    'submitCheckIn' : IDL.Func([CheckInEntry], [DayCheckInResponse], []),
+    'submitFollowUpCheckIn' : IDL.Func([IDL.Nat], [DayCheckInResponse], []),
   });
 };
 

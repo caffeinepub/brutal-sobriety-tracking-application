@@ -3,26 +3,37 @@ import Map "mo:core/Map";
 import Array "mo:core/Array";
 import Order "mo:core/Order";
 import Nat64 "mo:core/Nat64";
+import Int "mo:core/Int";
+import Nat "mo:core/Nat";
+import Iter "mo:core/Iter";
+import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
-import Int "mo:core/Int";
-import Principal "mo:core/Principal";
-import Nat "mo:core/Nat";
-
-import Iter "mo:core/Iter";
-import Migration "migration";
-
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
 
-(with migration = Migration.run)
+
+
 actor {
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
 
   type Mood = { #happy; #neutral; #sad };
+
   public type MotivationLens = { #family; #money; #sex; #health; #sport };
   public type DrinkingBaseline = { #low; #medium; #high; #avoidant };
+
+  public type FeedbackMatrixEntry = {
+    ageRange : Text;
+    motivation : MotivationLens;
+    baselineTier : DrinkingBaseline;
+    secondarySubstance : ?Text;
+    streakRatio : ?Text;
+    isWeekend : ?Bool;
+    daysUntilFullMoon : ?Nat;
+    chanceOfDrinkingTomorrow : ?Text;
+    message : Text;
+  };
 
   public type OnboardingAnswers = {
     ageRange : Text;
@@ -49,11 +60,26 @@ actor {
     checkInCount : Nat;
   };
 
+  module AggregatedEntry {
+    public func compareByDate(a : AggregatedEntry, b : AggregatedEntry) : Order.Order {
+      Nat64.compare(a.date, b.date);
+    };
+  };
+
+  module PersistentUserProfile {
+    public type DayCheckinStatus = {
+      hasCheckedIn : Bool;
+      numberOfChecks : Nat;
+      drinks : Nat; // Number of drinks in this case
+      _firstCheckTime : ?Nat64; // Mutable - ignored on migration
+    };
+  };
+
   public type PersistentUserProfile = {
     onboardingAnswers : OnboardingAnswers;
     hasCompletedOnboarding : Bool;
     lastCheckInDate : ?Nat64;
-    currentDayCheckInStatus : ?Bool;
+    currentDayCheckInStatus : ?PersistentUserProfile.DayCheckinStatus;
     aggregatedEntries : List.List<AggregatedEntry>;
     currentDayTotalDrinks : Nat;
     lastBrutalFriendFeedback : Text;
@@ -65,104 +91,91 @@ actor {
     onboardingAnswers : OnboardingAnswers;
     hasCompletedOnboarding : Bool;
     lastCheckInDate : ?Nat64;
-    currentDayCheckInStatus : ?Bool;
+    currentDayCheckInStatus : ?PersistentUserProfile.DayCheckinStatus;
   };
 
-  module AggregatedEntry {
-    public func compareByDate(a : AggregatedEntry, b : AggregatedEntry) : Order.Order {
-      Nat64.compare(a.date, b.date);
-    };
+  type DayCheckInResponse = {
+    feedbackMatrixEntry : FeedbackMatrixEntry;
+    message : Text;
+    date : Nat64;
+    totalDrinks : Nat;
+    isFollowUp : Bool;
   };
 
   let userProfiles = Map.empty<Principal, PersistentUserProfile>();
 
-  let brutalFriendFeedbackMessages = [
-    // Family lens messages
-    "Still sober? Your kids probably have no idea who you are.",
-    "One day without drinks — your family almost recognizes your voice again.",
-    "You slipped? Don't worry, your kids will get used to disappointment.",
-    "Another sober day? Your partner might start believing in miracles.",
-    "Congrats on not drinking! Your future self owes you a family game night.",
+  let feedbackMatrix = List.empty<FeedbackMatrixEntry>();
 
-    // Money lens messages
-    "You resisted again? Your wallet is starting to notice.",
-    "Sober streak continues! Even your bank account is impressed.",
-    "You fell off the wagon? Financial responsibility wasn't your strong suit anyway.",
-    "Clean day achieved! Your budget is slowly recovering.",
-    "Another drink day? Your financial advisor is shaking their head.",
-
-    // Sex lens messages
-    "You stayed strong today! Your attractiveness just increased by 0.5%",
-    "Slipped up again? Your dating profile photo just lost a swipe right.",
-    "Sober today? Plot twist: You might remember Tinder conversations now.",
-    "You drank? And here we thought you wanted a dating life.",
-    "Clean streak intact! You're basically relationship material now.",
-
-    // Health lens messages
-    "You resisted temptation! Hell just froze over a little bit.",
-    "Another drink day? Your liver is writing its resignation letter.",
-    "Sober success! You're like a unicorn, but with fewer toxins.",
-    "You slipped? Don't worry, even wellness podcasts relapse, too.",
-    "Still sober? Blink twice if your organs are grateful.",
-
-    // Sport lens messages
-    "Another day, another victory over your worst athletic performance.",
-    "You stayed strong today! Your body just leveled up in recovery.",
-    "Slipped up again? Your coach called — they're not angry, just disappointed.",
-    "Sober today? Plot twist: You might actually break a sweat now.",
-    "You drank? And here we thought you wanted to win a championship.",
-  ];
-
-  func getBrutalFriendMessage(motivation : MotivationLens, isSoberDay : Bool, secondarySubstance : ?Text, randomSeed : Nat) : Text {
-    let time = Time.now();
-    let timeNs = Int.abs(time);
-    let seed = timeNs % 100_000_000;
-    let combinedSeed = (seed + randomSeed).toInt() % 100_000_000;
-    let randomIndex = (combinedSeed + timeNs).toNat() % brutalFriendFeedbackMessages.size();
-
-    let mainMessage = switch (motivation) {
-      case (#family) {
-        let familyMessages = brutalFriendFeedbackMessages.sliceToArray(0, 5);
-        familyMessages[randomIndex % familyMessages.size()];
-      };
-      case (#money) {
-        let moneyMessages = brutalFriendFeedbackMessages.sliceToArray(5, 10);
-        moneyMessages[randomIndex % moneyMessages.size()];
-      };
-      case (#sex) {
-        let sexMessages = brutalFriendFeedbackMessages.sliceToArray(10, 15);
-        sexMessages[randomIndex % sexMessages.size()];
-      };
-      case (#health) {
-        let healthMessages = brutalFriendFeedbackMessages.sliceToArray(15, 20);
-        healthMessages[randomIndex % healthMessages.size()];
-      };
-      case (#sport) {
-        let sportMessages = brutalFriendFeedbackMessages.sliceToArray(20, 25);
-        sportMessages[randomIndex % sportMessages.size()];
-      };
+  public shared ({ caller }) func addFeedbackMatrixEntry(entry : FeedbackMatrixEntry) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can add feedback matrix entries");
     };
-
-    if (isSoberDay) {
-      mainMessage # getSecondarySubstanceReference(secondarySubstance, randomSeed);
-    } else {
-      mainMessage;
-    };
+    feedbackMatrix.add(entry);
   };
 
-  func getSecondarySubstanceReference(substance : ?Text, randomSeed : Nat) : Text {
-    // Use randomSeed to determine if reference should be included
-    if (randomSeed % 100 < 20) {
-      switch (substance) {
-        case (null) { "" };
-        case (?"weed") { "Weed might be calling too." };
-        case (?"cocaine") { "Your other friend isn't quiet either." };
-        case (?"porn") { "Time to avoid another habit too." };
-        case (?"cigarettes") { "Smokes are still around." };
-        case (?"games") { "The other vice still wins time." };
-        case (_) { "" };
-      };
-    } else { "" };
+  func matchesUserState(entry : FeedbackMatrixEntry, userState : {
+    ageRange : Text;
+    motivation : MotivationLens;
+    baselineTier : DrinkingBaseline;
+    secondarySubstance : ?Text;
+  }) : Bool {
+    let ageMatches = entry.ageRange == userState.ageRange or entry.ageRange == "any";
+    let motivationMatches = switch (entry.motivation, userState.motivation) {
+      case (#family, #family) { true };
+      case (#money, #money) { true };
+      case (#sex, #sex) { true };
+      case (#health, #health) { true };
+      case (#sport, #sport) { true };
+      case (_) { false };
+    };
+
+    let baselineMatches = switch (entry.baselineTier, userState.baselineTier) {
+      case (#low, #low) { true };
+      case (#medium, #medium) { true };
+      case (#high, #high) { true };
+      case (#avoidant, #avoidant) { true };
+      case (_) { false };
+    };
+    let substanceMatches = switch (entry.secondarySubstance, userState.secondarySubstance) {
+      case (null, null) { true };
+      case (null, ?_) { true };
+      case (?"any", _) { true };
+      case (?sub1, ?sub2) { sub1 == sub2 };
+      case (_) { false };
+    };
+
+    ageMatches and motivationMatches and baselineMatches and substanceMatches;
+  };
+
+  func findBestMatchingEntry(userState : {
+    ageRange : Text;
+    motivation : MotivationLens;
+    baselineTier : DrinkingBaseline;
+    secondarySubstance : ?Text;
+  }) : ?FeedbackMatrixEntry {
+    let candidates = feedbackMatrix.toArray().filter(
+      func(entry) { matchesUserState(entry, userState) }
+    );
+
+    let strongMatches = candidates.filter(
+      func(entry) {
+        (entry.ageRange == userState.ageRange or entry.ageRange == "any") and
+        matchesUserState(entry, userState)
+      }
+    );
+
+    if (strongMatches.size() > 0) { return ?strongMatches[0] };
+    if (candidates.size() > 0) { return ?candidates[0] };
+    null;
+  };
+
+  func searchFeedbackMatrix(userState : {
+    ageRange : Text;
+    motivation : MotivationLens;
+    baselineTier : DrinkingBaseline;
+    secondarySubstance : ?Text;
+  }) : ?FeedbackMatrixEntry {
+    findBestMatchingEntry(userState);
   };
 
   func getStartOfDay(timestamp : Nat64) : Nat64 {
@@ -218,6 +231,7 @@ actor {
     isFirstLoginOfDay : Bool;
     lastLoginWasSober : Int;
     needsFollowUp : Bool;
+    soberDaysTarget : Nat;
   } {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can check onboarding and daily check-in status");
@@ -232,6 +246,7 @@ actor {
           isFirstLoginOfDay = true;
           lastLoginWasSober = 0;
           needsFollowUp = false;
+          soberDaysTarget = 30 : Nat;
         };
       };
       case (?profile) {
@@ -244,15 +259,15 @@ actor {
 
         let isCompleted = switch (profile.currentDayCheckInStatus) {
           case (null) { false };
-          case (?status) { status };
+          case (?status) { status.hasCheckedIn };
         };
 
         let needsFollowUp = (not needsDailyCheckIn) and profile.hasCompletedOnboarding;
-
         let lastLoginWasSober = if (not needsDailyCheckIn and profile.hasCompletedOnboarding) {
           switch (profile.currentDayCheckInStatus) {
-            case (?false) { 0 };
-            case (?true) { 1 };
+            case (?status) {
+              if (status.hasCheckedIn and status.drinks == 0) { 1 } else { 0 };
+            };
             case (null) { -1 };
           };
         } else { 0 };
@@ -264,6 +279,7 @@ actor {
           isFirstLoginOfDay = needsDailyCheckIn;
           lastLoginWasSober;
           needsFollowUp;
+          soberDaysTarget = mapSoberDaysTarget(profile.onboardingAnswers.sobrietyDuration);
         };
       };
     };
@@ -297,7 +313,6 @@ actor {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can save profiles");
     };
-
     let persistentProfile : PersistentUserProfile = {
       profile with
       aggregatedEntries = List.empty<AggregatedEntry>();
@@ -305,27 +320,26 @@ actor {
         case (null) { 0 };
         case (_) { 0 };
       };
-      lastBrutalFriendFeedback = getBrutalFriendMessage(#family, true, null, 0);
+      lastBrutalFriendFeedback = "";
       motivationButtonClicks = 0;
-      lastMotivationClickDay = 0;
+      lastMotivationClickDay = 0 : Nat64;
     };
     userProfiles.add(caller, persistentProfile);
   };
 
-  public shared ({ caller }) func submitCheckIn(entry : CheckInEntry) : async {
-    message : Text;
-    date : Nat64;
-    totalDrinks : Nat;
-  } {
+  public shared ({ caller }) func submitCheckIn(entry : CheckInEntry) : async DayCheckInResponse {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can submit check-ins");
     };
 
-    // Use deterministic time-based seed for controlled randomness
-    let randomSeed = Int.abs(Time.now()) % 100_000_000;
+    let profile = switch (userProfiles.get(caller)) {
+      case (null) {
+        Runtime.trap("User profile not found - onboarding must be completed first");
+      };
+      case (?p) { p };
+    };
 
     let startOfDay = getStartOfDay(entry.date);
-
     let newEntry : AggregatedEntry = {
       date = startOfDay;
       sober = entry.sober;
@@ -334,75 +348,90 @@ actor {
       checkInCount = 1;
     };
 
-    let currentEntries = getOrInitializeUserEntries(caller);
+    let currentEntries = profile.aggregatedEntries;
     let mergedEntries = mergeEntriesForDate(currentEntries, newEntry);
 
     let now = Int.abs(Time.now() / 1_000_000);
     let today = getStartOfDay(Nat64.fromNat(now));
 
-    let persistentProfile : PersistentUserProfile = switch (userProfiles.get(caller)) {
-      case (null) {
-        {
-          onboardingAnswers = {
-            ageRange = "";
-            drinksPerWeek = "";
-            motivation = #family;
-            secondarySubstance = null;
-            sobrietyDuration = "";
-            timeZone = "";
-            baselineTier = #low;
+    let newTotalDrinks = if (currentEntries.size() == 0) {
+      entry.drinks;
+    } else {
+      currentEntries.foldLeft(
+        entry.drinks,
+        func(acc, e) {
+          if (e.date == startOfDay) {
+            acc + e.drinks;
+          } else {
+            entry.drinks;
           };
-          hasCompletedOnboarding = false;
-          lastCheckInDate = ?today;
-          currentDayCheckInStatus = ?true;
-          aggregatedEntries = mergedEntries;
-          currentDayTotalDrinks = entry.drinks;
-          lastBrutalFriendFeedback = getBrutalFriendMessage(#family, true, null, randomSeed);
-          motivationButtonClicks = 0;
-          lastMotivationClickDay = 0;
-        };
+        },
+      );
+    };
+
+    let persistentProfile : PersistentUserProfile = {
+      profile with
+      aggregatedEntries = mergedEntries;
+      lastCheckInDate = ?today;
+      currentDayCheckInStatus = ?{
+        hasCheckedIn = true;
+        numberOfChecks = 1;
+        drinks = newTotalDrinks;
+        _firstCheckTime = ?Nat64.fromNat(now);
       };
-      case (?profile) {
-        let newTotalDrinks = if (currentEntries.size() == 0) {
-          entry.drinks;
-        } else {
-          currentEntries.foldLeft(
-            entry.drinks,
-            func(acc, e) {
-              if (e.date == startOfDay) {
-                acc + e.drinks;
-              } else {
-                entry.drinks;
-              };
-            },
-          );
-        };
-        {
-          profile with
-          aggregatedEntries = mergedEntries;
-          lastCheckInDate = ?today;
-          currentDayCheckInStatus = ?true;
-          currentDayTotalDrinks = newTotalDrinks;
-          lastBrutalFriendFeedback = getBrutalFriendMessage(profile.onboardingAnswers.motivation, entry.sober, profile.onboardingAnswers.secondarySubstance, randomSeed);
-        };
-      };
+      currentDayTotalDrinks = newTotalDrinks;
     };
 
     userProfiles.add(caller, persistentProfile);
+
+    let userState = {
+      ageRange = persistentProfile.onboardingAnswers.ageRange;
+      motivation = persistentProfile.onboardingAnswers.motivation;
+      baselineTier = persistentProfile.onboardingAnswers.baselineTier;
+      secondarySubstance = persistentProfile.onboardingAnswers.secondarySubstance;
+    };
+
+    let feedbackMatrixEntry = switch (searchFeedbackMatrix(userState)) {
+      case (null) {
+        {
+          ageRange = "default";
+          motivation = #health;
+          baselineTier = #low;
+          secondarySubstance = null;
+          streakRatio = null;
+          isWeekend = null;
+          daysUntilFullMoon = null;
+          chanceOfDrinkingTomorrow = null;
+          message = "Booyah. Stay motivated.";
+        };
+      };
+      case (?entry) { entry };
+    };
+
+    let newPersistentProfile : PersistentUserProfile = {
+      persistentProfile with
+      lastBrutalFriendFeedback = feedbackMatrixEntry.message;
+    };
+    userProfiles.add(caller, newPersistentProfile);
+
+    let isFollowUp = switch (persistentProfile.currentDayCheckInStatus) {
+      case (null) { false };
+      case (?status) { status.hasCheckedIn };
+    };
+
     {
-      message = persistentProfile.lastBrutalFriendFeedback;
+      feedbackMatrixEntry;
+      message = feedbackMatrixEntry.message;
       date = startOfDay;
       totalDrinks = persistentProfile.currentDayTotalDrinks;
+      isFollowUp;
     };
   };
 
-  public shared ({ caller }) func submitFollowUpCheckIn(drinks : Nat) : async Text {
+  public shared ({ caller }) func submitFollowUpCheckIn(drinks : Nat) : async DayCheckInResponse {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can submit follow-up check-ins");
     };
-
-    // Use deterministic time-based seed for controlled randomness
-    let randomSeed = Int.abs(Time.now()) % 100_000_000;
 
     switch (userProfiles.get(caller)) {
       case (null) {
@@ -423,16 +452,67 @@ actor {
         let currentEntries = getOrInitializeUserEntries(caller);
         let mergedEntries = mergeEntriesForDate(currentEntries, newEntry);
 
-        let updatedProfile = {
+        let persistentProfile : PersistentUserProfile = {
           profile with
           aggregatedEntries = mergedEntries;
           lastCheckInDate = ?today;
-          currentDayCheckInStatus = ?true;
-          lastBrutalFriendFeedback = getBrutalFriendMessage(profile.onboardingAnswers.motivation, false, profile.onboardingAnswers.secondarySubstance, randomSeed);
+          currentDayCheckInStatus = ?{
+            hasCheckedIn = true;
+            numberOfChecks = 1;
+            drinks;
+            _firstCheckTime = ?Nat64.fromNat(now);
+          };
         };
 
-        userProfiles.add(caller, updatedProfile);
-        updatedProfile.lastBrutalFriendFeedback;
+        userProfiles.add(caller, persistentProfile);
+
+        let persistentProfileAfterUpdate = switch (userProfiles.get(caller)) {
+          case (null) {
+            Runtime.trap("User profile not found after updating persistent user profile");
+          };
+          case (?persistentProfileAfterUpdate) { persistentProfileAfterUpdate };
+        };
+
+        let userState = {
+          ageRange = persistentProfileAfterUpdate.onboardingAnswers.ageRange;
+          motivation = persistentProfileAfterUpdate.onboardingAnswers.motivation;
+          baselineTier = persistentProfileAfterUpdate.onboardingAnswers.baselineTier;
+          secondarySubstance = persistentProfileAfterUpdate.onboardingAnswers.secondarySubstance;
+        };
+
+        let (message, feedbackMatrixEntry) = switch (searchFeedbackMatrix(userState)) {
+          case (null) {
+            (
+              "Booyah. Stay motivated.",
+              {
+                ageRange = "default";
+                motivation = #health;
+                baselineTier = #low;
+                secondarySubstance = null;
+                streakRatio = null;
+                isWeekend = null;
+                daysUntilFullMoon = null;
+                chanceOfDrinkingTomorrow = null;
+                message = "Booyah. Stay motivated.";
+              },
+            );
+          };
+          case (?entry) { (entry.message, entry) };
+        };
+
+        let newPersistentProfile : PersistentUserProfile = {
+          persistentProfileAfterUpdate with
+          lastBrutalFriendFeedback = message;
+        };
+        userProfiles.add(caller, newPersistentProfile);
+
+        {
+          feedbackMatrixEntry;
+          message;
+          date = today;
+          totalDrinks = persistentProfileAfterUpdate.currentDayTotalDrinks;
+          isFollowUp = true;
+        };
       };
     };
   };
@@ -554,33 +634,12 @@ actor {
       Runtime.trap("Unauthorized: Only users can use the motivation button");
     };
 
-    // Use deterministic time-based seed for controlled randomness
-    let randomSeed = Int.abs(Time.now()) % 100_000_000;
-
     let now = Int.abs(Time.now() / 1_000_000);
     let today = getStartOfDay(Nat64.fromNat(now));
 
     let profile = switch (userProfiles.get(caller)) {
       case (null) {
-        {
-          onboardingAnswers = {
-            ageRange = "";
-            drinksPerWeek = "";
-            motivation = #family;
-            secondarySubstance = null;
-            sobrietyDuration = "";
-            timeZone = "";
-            baselineTier = #low;
-          };
-          hasCompletedOnboarding = false;
-          lastCheckInDate = ?today;
-          currentDayCheckInStatus = ?true;
-          aggregatedEntries = List.empty<AggregatedEntry>();
-          currentDayTotalDrinks = 0;
-          lastBrutalFriendFeedback = getBrutalFriendMessage(#family, true, null, randomSeed);
-          motivationButtonClicks = 0;
-          lastMotivationClickDay = today;
-        };
+        Runtime.trap("User profile not found - please complete onboarding first");
       };
       case (?existing) { existing };
     };
@@ -589,7 +648,7 @@ actor {
       if (profile.motivationButtonClicks >= 3) {
         (0, true);
       } else {
-        (3 - profile.motivationButtonClicks, false);
+        (Nat.sub(3, profile.motivationButtonClicks), false);
       };
     } else {
       (3, false);
@@ -615,9 +674,19 @@ actor {
 
     userProfiles.add(caller, newProfile);
 
+    let userState = {
+      ageRange = profile.onboardingAnswers.ageRange;
+      motivation = profile.onboardingAnswers.motivation;
+      baselineTier = profile.onboardingAnswers.baselineTier;
+      secondarySubstance = profile.onboardingAnswers.secondarySubstance;
+    };
+
     {
-      message = getBrutalFriendMessage(profile.onboardingAnswers.motivation, true, profile.onboardingAnswers.secondarySubstance, randomSeed);
-      remainingClicks = remainingClicks - 1;
+      message = switch (searchFeedbackMatrix(userState)) {
+        case (null) { "Booyah. Stay motivated." };
+        case (?entry) { entry.message };
+      };
+      remainingClicks = Nat.sub(remainingClicks, 1);
       isLimitReached = remainingClicks == 1;
     };
   };
@@ -630,6 +699,32 @@ actor {
     switch (userProfiles.get(caller)) {
       case (null) { "" };
       case (?profile) { profile.onboardingAnswers.timeZone };
+    };
+  };
+
+  public query ({ caller }) func getSoberDaysTarget() : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can get sober days target");
+    };
+
+    switch (userProfiles.get(caller)) {
+      case (null) {
+        Runtime.trap("User profile not found - cannot get sober days target");
+      };
+      case (?profile) {
+        mapSoberDaysTarget(profile.onboardingAnswers.sobrietyDuration);
+      };
+    };
+  };
+
+  func mapSoberDaysTarget(duration : Text) : Nat {
+    switch (duration) {
+      case ("2 days") { 2 };
+      case ("5 days") { 5 };
+      case ("1 week") { 7 };
+      case ("2 weeks") { 14 };
+      case ("1 month") { 30 };
+      case (_) { 30 };
     };
   };
 };

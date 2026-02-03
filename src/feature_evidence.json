@@ -1,0 +1,62 @@
+{
+  "kind": "feature_evidence_report",
+  "features": [
+    {
+      "featureId": "feature-add-a-frontend-only-feedback-matrix-inspector-view-that-loads-frontend-public-feedbackmatrix-json-via-the-existing-loadfeedbackmatrix-loader-and-displays-for-each-unique-user-input-combination-how-many-feedback-messages-exist-in-the-matrix",
+      "featureTitle": "Add a frontend-only “Feedback Matrix Inspector” view that loads `frontend/public/feedbackMatrix.json` via the existing `loadFeedbackMatrix()` loader and displays, for each unique user-input combination, how many feedback messages exist in the matrix.",
+      "files": [
+        "frontend/src/pages/FeedbackMatrixInspector.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-1"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-in-the-feedback-matrix-inspector-also-display-a-per-entry-sentence-count-for-each-message-computed-on-the-frontend-by-splitting-the-message-text-into-sentences-and-a-per-group-total-sentence-count",
+      "featureTitle": "In the Feedback Matrix Inspector, also display a per-entry sentence count for each message (computed on the frontend by splitting the message text into sentences) and a per-group total sentence count.",
+      "files": [
+        "frontend/src/pages/FeedbackMatrixInspector.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-2"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-provide-a-safe-way-to-access-the-feedback-matrix-inspector-from-the-app-without-modifying-authentication-internals-add-a-minimal-route-or-conditional-rendering-entry-point-for-example-a-debug-feedback-matrix-route-or-a-debug-feedback-matrix-flag-and-ensure-it-does-not-appear-in-normal-user-flow-by-default",
+      "featureTitle": "Provide a safe way to access the Feedback Matrix Inspector from the app without modifying authentication internals: add a minimal route or conditional rendering entry point (for example, a `#/debug/feedback-matrix` route or a `?debug=feedback-matrix` flag) and ensure it does not appear in normal user flow by default.",
+      "files": [
+        "frontend/src/App.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-3"
+      ],
+      "confidence": "high"
+    }
+  ]
+}

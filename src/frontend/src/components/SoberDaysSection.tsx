@@ -1,5 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Trophy, Target } from 'lucide-react';
+import { useGetSoberDaysTarget } from '../hooks/useQueries';
 
 interface SoberDaysSectionProps {
   metrics?: {
@@ -14,8 +15,9 @@ export default function SoberDaysSection({ metrics }: SoberDaysSectionProps) {
   const soberDays = Number(metrics?.soberDays || 0);
   const currentStreak = Number(metrics?.currentStreak || 0);
   
-  // Placeholder target - could be stored in user profile later
-  const soberDaysTarget = 30;
+  // Fetch dynamic sober days target from backend based on user's sobrietyDuration
+  const { data: soberDaysTargetBigInt, isLoading: targetLoading } = useGetSoberDaysTarget();
+  const soberDaysTarget = Number(soberDaysTargetBigInt || BigInt(30));
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
@@ -47,7 +49,7 @@ export default function SoberDaysSection({ metrics }: SoberDaysSectionProps) {
             <Target className="w-6 h-6 text-secondary" />
           </div>
           <div className="text-6xl font-black text-secondary neon-glow-blue mb-2">
-            {soberDaysTarget}
+            {targetLoading ? '...' : soberDaysTarget}
           </div>
           <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
             &gt; {soberDays}/{soberDaysTarget} days completed
@@ -57,3 +59,4 @@ export default function SoberDaysSection({ metrics }: SoberDaysSectionProps) {
     </div>
   );
 }
+

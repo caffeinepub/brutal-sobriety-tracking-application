@@ -1,0 +1,60 @@
+{
+  "kind": "implementation_plan",
+  "version": "1.0",
+  "title": "Feedback Matrix Inspector (debug view) with message and sentence counts",
+  "requirements": [
+    {
+      "id": "REQ-1",
+      "summary": "Add a frontend-only Feedback Matrix Inspector view that loads the local feedbackMatrix.json via loadFeedbackMatrix() and shows message counts grouped by the matrix selection fields.",
+      "acceptanceCriteria": [
+        "The inspector groups entries by (ageRange, motivation, baselineTier, secondarySubstance) using the same fields used by the matrix selection logic.",
+        "For each group, the UI shows the group key and the total count of messages available for that key.",
+        "The inspector view renders even when the matrix fails to load, showing a clear error state in English (and does not crash the app)."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/FeedbackMatrixInspector.tsx",
+          "operation": "create",
+          "description": "Create the Feedback Matrix Inspector view that calls the existing loadFeedbackMatrix() loader, groups loaded entries by (ageRange, motivation, baselineTier, secondarySubstance), and renders group keys with per-group message counts plus an English empty/loading state."
+        },
+        {
+          "path": "frontend/src/lib/feedbackMatrixLoader.ts",
+          "operation": "modify",
+          "description": "Augment the loader with a non-breaking way for the inspector to detect load failures (e.g., store and export a last-load error string/state while keeping loadFeedbackMatrix() behavior intact for existing callers)."
+        }
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "summary": "In the inspector, compute deterministic sentence counts per message and total sentences per group.",
+      "acceptanceCriteria": [
+        "Each message row shows: the message text and a computed sentence count.",
+        "Each group row shows: message count and total sentences across messages in that group.",
+        "Sentence counting is deterministic and documented in code comments (e.g., split on ., !, ? while ignoring empty results)."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/FeedbackMatrixInspector.tsx",
+          "operation": "modify",
+          "description": "Add a documented, deterministic sentence-counting helper (split on ., !, ? and ignore empty results), display per-message sentence counts, and compute/render per-group total sentence counts alongside message counts."
+        }
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "summary": "Provide a safe, non-default way to access the inspector via a debug-only route/flag without changing authentication internals.",
+      "acceptanceCriteria": [
+        "A developer can navigate directly to the inspector using the chosen URL/flag mechanism.",
+        "Normal onboarding/dashboard flows are unchanged unless the debug route/flag is used.",
+        "No changes are made to immutable frontend paths listed in SYSTEM_CONTEXT."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/App.tsx",
+          "operation": "modify",
+          "description": "Wire the inspector into the app behind a debug-only entry (e.g., window.location.hash equals '#/debug/feedback-matrix' and/or a persisted 'debug=feedback-matrix' URL parameter via frontend/src/utils/urlParams.ts), ensuring it is not linked in normal user flow and only changes behavior when the debug mechanism is present."
+        }
+      ]
+    }
+  ]
+}

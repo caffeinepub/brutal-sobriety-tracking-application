@@ -7,10 +7,17 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
-export interface CheckInEntry {
+export interface DayCheckInResponse {
     date: bigint;
-    mood?: Mood;
-    sober: boolean;
+    message: string;
+    totalDrinks: bigint;
+    feedbackMatrixEntry: FeedbackMatrixEntry;
+    isFollowUp: boolean;
+}
+export interface DayCheckinStatus {
+    _firstCheckTime?: bigint;
+    hasCheckedIn: boolean;
+    numberOfChecks: bigint;
     drinks: bigint;
 }
 export interface OnboardingAnswers {
@@ -22,6 +29,12 @@ export interface OnboardingAnswers {
     motivation: MotivationLens;
     timeZone: string;
 }
+export interface CheckInEntry {
+    date: bigint;
+    mood?: Mood;
+    sober: boolean;
+    drinks: bigint;
+}
 export interface AggregatedEntry {
     date: bigint;
     mood?: Mood;
@@ -29,10 +42,21 @@ export interface AggregatedEntry {
     checkInCount: bigint;
     drinks: bigint;
 }
+export interface FeedbackMatrixEntry {
+    secondarySubstance?: string;
+    baselineTier: DrinkingBaseline;
+    isWeekend?: boolean;
+    ageRange: string;
+    daysUntilFullMoon?: bigint;
+    streakRatio?: string;
+    message: string;
+    motivation: MotivationLens;
+    chanceOfDrinkingTomorrow?: string;
+}
 export interface UserProfile {
     lastCheckInDate?: bigint;
     onboardingAnswers: OnboardingAnswers;
-    currentDayCheckInStatus?: boolean;
+    currentDayCheckInStatus?: DayCheckinStatus;
     hasCompletedOnboarding: boolean;
 }
 export enum DrinkingBaseline {
@@ -59,6 +83,7 @@ export enum UserRole {
     guest = "guest"
 }
 export interface backendInterface {
+    addFeedbackMatrixEntry(entry: FeedbackMatrixEntry): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     checkOnboardingAndCheckInStatus(): Promise<{
         needsDailyCheckIn: boolean;
@@ -66,6 +91,7 @@ export interface backendInterface {
         isDailyCheckInCompleted: boolean;
         needsOnboarding: boolean;
         lastLoginWasSober: bigint;
+        soberDaysTarget: bigint;
         needsFollowUp: boolean;
     }>;
     getCallerUserProfile(): Promise<UserProfile | null>;
@@ -85,14 +111,11 @@ export interface backendInterface {
         totalCheckIns: bigint;
         currentStreak: bigint;
     }>;
+    getSoberDaysTarget(): Promise<bigint>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     getUserTimeZone(): Promise<string>;
     isCallerAdmin(): Promise<boolean>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
-    submitCheckIn(entry: CheckInEntry): Promise<{
-        date: bigint;
-        message: string;
-        totalDrinks: bigint;
-    }>;
-    submitFollowUpCheckIn(drinks: bigint): Promise<string>;
+    submitCheckIn(entry: CheckInEntry): Promise<DayCheckInResponse>;
+    submitFollowUpCheckIn(drinks: bigint): Promise<DayCheckInResponse>;
 }

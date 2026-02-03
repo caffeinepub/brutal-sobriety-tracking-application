@@ -9,7 +9,7 @@ interface BrutalFriendDialogProps {
   message?: string;
 }
 
-const brutalMessages = [
+const fallbackMessages = [
   "Still sober? Blink twice if you're hostage to your own self-control.",
   "You resisted again? The bar staff are starting to worry.",
   "One day without drinks — your liver just sent a thank you emoji.",
@@ -20,28 +20,18 @@ const brutalMessages = [
   "Sober streak continues! Even your demons are impressed.",
   "You fell off the wagon? Don't worry, it wasn't going that fast anyway.",
   "Another day, another victory over your own worst instincts.",
-  "You stayed strong today! Your liver is doing a little happy dance.",
-  "Slipped up again? Your willpower called in sick, apparently.",
-  "Sober today? Plot twist: you're actually capable of self-control.",
-  "You drank? Shocking. Said no one who knows you.",
-  "Clean day achieved! Your bank account is slowly recovering.",
-  "You resisted temptation! Hell just froze over a little bit.",
-  "Another drink day? Your liver is writing its resignation letter.",
-  "Sober success! You're like a unicorn, but real and slightly less magical.",
-  "You slipped? Don't worry, even superheroes have off days.",
-  "Clean streak intact! You're basically a sobriety ninja now.",
 ];
 
 export default function BrutalFriendDialog({ open, onOpenChange, message }: BrutalFriendDialogProps) {
   const [displayMessage, setDisplayMessage] = useState('');
 
-  // Use provided message from backend, or pick a random one as fallback
+  // Use provided message from backend (cached), or pick a random fallback
   useEffect(() => {
     if (open) {
       if (message && message.trim() !== '') {
         setDisplayMessage(message);
       } else {
-        const selectedMessage = brutalMessages[Math.floor(Math.random() * brutalMessages.length)];
+        const selectedMessage = fallbackMessages[Math.floor(Math.random() * fallbackMessages.length)];
         setDisplayMessage(selectedMessage);
       }
     }

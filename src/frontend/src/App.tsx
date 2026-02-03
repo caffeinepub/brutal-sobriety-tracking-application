@@ -4,6 +4,7 @@ import { useActor } from './hooks/useActor';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import OnboardingFlow from './components/OnboardingFlow';
+import FeedbackMatrixInspector from './pages/FeedbackMatrixInspector';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from 'next-themes';
 import { useEffect, useState } from 'react';
@@ -14,13 +15,17 @@ export default function App() {
   const { identity, isInitializing } = useInternetIdentity();
   const { actor, isFetching: actorFetching } = useActor();
   const [showLogin, setShowLogin] = useState(false);
-  const [statusTimeout, setStatusTimeout] = useState(false);
   const [connectionRetries, setConnectionRetries] = useState(0);
 
   const isAuthenticated = !!identity;
   const actorInitialized = !!actor && !actorFetching;
 
-  // Status query with error handling
+  // Check for debug route
+  const isDebugInspector = 
+    window.location.hash === '#/debug/feedback-matrix' ||
+    new URLSearchParams(window.location.search).get('debug') === 'feedback-matrix';
+
+  // Status query - fetch immediately when actor is ready
   const { 
     data: status, 
     isLoading: statusLoading, 
@@ -46,23 +51,11 @@ export default function App() {
     }
   }, [isInitializing, isAuthenticated]);
 
-  // Status loading timeout: proceed after 3 seconds even if status query hasn't resolved
-  useEffect(() => {
-    if (!isAuthenticated || !statusLoading) return;
-
-    const timeout = setTimeout(() => {
-      setStatusTimeout(true);
-    }, 3000);
-
-    return () => clearTimeout(timeout);
-  }, [isAuthenticated, statusLoading]);
-
   // Handle status fetch errors
   useEffect(() => {
     if (statusError) {
       console.error('Status fetch error:', statusError);
       toast.error('Failed to load status. Please try refreshing.');
-      setStatusTimeout(true);
     }
   }, [statusError]);
 
@@ -76,6 +69,16 @@ export default function App() {
       }
     }
   }, [isAuthenticated, actor, actorFetching, connectionRetries]);
+
+  // Debug route: show inspector without authentication
+  if (isDebugInspector) {
+    return (
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+        <FeedbackMatrixInspector />
+        <Toaster />
+      </ThemeProvider>
+    );
+  }
 
   // Show login page if not authenticated (with fallback timeout)
   if (!isAuthenticated) {
@@ -148,10 +151,9 @@ export default function App() {
     );
   }
 
-  // After actor initialization, check status with timeout fail-safe
-  const shouldShowLoading = !statusFetched && statusLoading && !statusTimeout;
-
-  if (shouldShowLoading) {
+  // Wait for status to be fetched before deciding flow
+  // This prevents flash of onboarding for returning users
+  if (!statusFetched && statusLoading) {
     return (
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         <div className="min-h-screen bg-background flex items-center justify-center">
@@ -166,8 +168,7 @@ export default function App() {
   }
 
   // Determine flow based on status
-  // If timeout occurred or error, assume needs onboarding
-  const needsOnboarding = status?.needsOnboarding ?? true;
+  const needsOnboarding = status?.needsOnboarding ?? false;
 
   if (needsOnboarding) {
     return (
@@ -178,7 +179,7 @@ export default function App() {
     );
   }
 
-  // Show dashboard - check-in dialogs are now only rendered in Dashboard component
+  // Show dashboard - check-in dialogs are rendered inside Dashboard component
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
       <Dashboard />
