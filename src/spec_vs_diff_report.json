@@ -1,46 +1,70 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-04T13:43:19.516Z",
-  "summary": "REQ-5 is partially implemented: the sign-in page now visibly displays the app name text \"BRUTAL\" as a prominent heading on LoginPage. However, the diff also changes other sign-in page content/styling (e.g., logo sizing, headline/tagline presentation, and button label), which conflicts with the requirement/constraints to avoid altering existing sign-in content beyond minimal spacing needed to insert the name.",
+  "generatedAt": "2026-02-04T15:13:57.751Z",
+  "summary": "REQ-8 asks for a clean rebuild and redeploy (fresh state; clears prior artifacts/caches) and specifically forbids new product features. The diff adds frontend-only clean rebuild docs/scripts, but also includes multiple apparent product/UX and backend content changes unrelated to a clean rebuild/redeploy. Evidence for an actual full clean canister rebuild/redeploy (e.g., clearing .dfx/build artifacts, dfx clean, redeploy steps) is not shown in the diff summary.",
   "missing_requirements": [
     {
-      "id": "REQ-5",
-      "requirement": "Do not alter or re-layout any other existing sign-in page content beyond what is necessary to insert the app name; keep all existing sign-in sections present and functionally unchanged aside from minimal spacing.",
-      "reason": "LoginPage changes go beyond inserting the app name: the logo is enlarged, the title/headline/tagline styling/content formatting is modified, and the login button label is changed to \"CONTINUE\" (and related comments suggest additional alterations). This violates the \"minimal change\" constraint/AC even though the name was added.",
+      "id": "REQ-8",
+      "requirement": "Perform a clean rebuild of the project and redeploy the canisters, ensuring all prior build artifacts/caches are cleared so the deployment runs from a fresh build state.",
+      "reason": "The added clean rebuild script/documentation appears to target only the frontend (removing dist/, node_modules/, Vite/TS caches). There is no evidence in the diff summary of clearing canister build artifacts (e.g., .dfx/), running a canister clean step, or providing/automating a full canister rebuild+redeploy process beyond generic mention of 'dfx deploy'.",
       "evidence": [
-        "frontend/src/pages/LoginPage.tsx"
+        "frontend/scripts/clean-rebuild.sh",
+        "frontend/CLEAN_REBUILD.md"
       ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "Preloading the logo image and adding a skeleton/fallback icon while loading.",
-      "reason": "Not requested by REQ-5; requirement only asks to display app name text on sign-in page without other changes.",
+      "description": "Expanded/modified ‘Brutal Friend’ feedback message set in the backend (new messages 21–50).",
+      "reason": "BuildRequest explicitly constrains the change to clean rebuild/redeploy only and forbids introducing new product features/content; adding new app messages is a product/content change unrelated to build artifact cleanup.",
       "evidence": [
-        "frontend/src/pages/LoginPage.tsx"
+        "backend/main.mo"
       ]
     },
     {
-      "description": "Changing sign-in page content/styling beyond adding the app name (e.g., enlarged logo, revised headline/tagline formatting, and changing the login button label to \"CONTINUE\").",
-      "reason": "Explicitly outside scope/non-goals: no redesign or copy changes besides inserting the app name.",
+      "description": "New/changed frontend functionality around repeat check-ins (new mutation hook) and daily check-in tracking behaviors.",
+      "reason": "Not requested; violates the constraint to avoid new product features and focus only on clean rebuild/redeploy.",
       "evidence": [
-        "frontend/src/pages/LoginPage.tsx"
+        "frontend-file-summaries.txt (frontend/src/hooks/useQueries.ts summary)"
       ]
     },
     {
-      "description": "Updating repository meta/state documentation files (frontend-file-summaries.txt, project_state.json).",
-      "reason": "Not requested by the BuildRequest; only sign-in page should be updated.",
+      "description": "UI/UX changes across routing/auth/onboarding/dashboard (error boundaries, connection indicators, retry mechanisms, controlled dialogs).",
+      "reason": "Not requested; BuildRequest prohibits new features and implies no functional UI changes beyond what’s strictly required for a clean rebuild/redeploy.",
       "evidence": [
-        "frontend-file-summaries.txt",
-        "project_state.json"
+        "frontend-file-summaries.txt (App.tsx, OnboardingFlow.tsx, DailyCheckInDialog.tsx, FollowUpCheckInDialog.tsx, BrutalFriendDialog.tsx summaries)"
+      ]
+    },
+    {
+      "description": "Added beer-donation button next to CHECK IN with clipboard copy and fallback dialog.",
+      "reason": "Explicitly a new feature; not requested and conflicts with the ‘no new product features’ constraint.",
+      "evidence": [
+        "frontend-file-summaries.txt (frontend/src/pages/Dashboard.tsx summary)"
+      ]
+    },
+    {
+      "description": "Branding/visual identity changes (BRUTAL neon/brutalist styling, Tailwind token changes, header/login page redesign).",
+      "reason": "Not requested; outside scope of clean rebuild/redeploy and violates ‘do not introduce new product features’ constraint.",
+      "evidence": [
+        "frontend-file-summaries.txt (LoginPage.tsx, Header.tsx, index.css, tailwind.config.js summaries)",
+        "project_state.json (summary mentions darker neon/brutalist identity and layout reorganization)"
+      ]
+    },
+    {
+      "description": "Project-wide state/documentation updates describing multiple new behaviors (session logic expansions, feedback matrix, cycle-window context, graph removed, etc.).",
+      "reason": "Not requested; indicates scope expansion beyond clean rebuild/redeploy.",
+      "evidence": [
+        "project_state.json (summary)"
       ]
     }
   ],
-  "confidence": 0.74,
+  "confidence": 0.72,
   "changed_files": [
+    "backend/main.mo",
     "frontend-file-summaries.txt",
-    "frontend/src/pages/LoginPage.tsx",
+    "frontend/CLEAN_REBUILD.md",
+    "frontend/scripts/clean-rebuild.sh",
     "project_state.json"
   ]
 }

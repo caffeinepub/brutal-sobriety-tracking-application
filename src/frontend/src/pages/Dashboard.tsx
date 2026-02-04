@@ -15,13 +15,14 @@ import RepeatCheckInDialog from '../components/RepeatCheckInDialog';
 import DataLoggedDialog from '../components/DataLoggedDialog';
 import BrutalFriendDialog from '../components/BrutalFriendDialog';
 import FollowUpCheckInDialog from '../components/FollowUpCheckInDialog';
+import BeerDonationDialog from '../components/BeerDonationDialog';
 import UnifiedHeaderSection from '../components/UnifiedHeaderSection';
 import ChanceOfDrinkingCard from '../components/ChanceOfDrinkingCard';
 import CycleWindowCard from '../components/CycleWindowCard';
 import SoberDaysSection from '../components/SoberDaysSection';
 import StatusIndicatorsSection from '../components/StatusIndicatorsSection';
 import { SiX, SiFacebook, SiInstagram } from 'react-icons/si';
-import { Heart, Plus } from 'lucide-react';
+import { Heart, Plus, Beer } from 'lucide-react';
 import { parseSobrietyDurationToDays } from '../utils/sobrietyDuration';
 import { Mood } from '../backend';
 import {
@@ -55,6 +56,8 @@ function getAverageDrinksPerWeek(drinksPerWeek: string): number {
   }
 }
 
+const DONATION_ADDRESS = 'wzq6l-62ys7-tvqe5-5wvtd-d256x-knbsv-c7vvd-cj4n6-rqztu-3guce-mqe';
+
 export default function Dashboard() {
   const { identity, clear } = useInternetIdentity();
   const queryClient = useQueryClient();
@@ -71,6 +74,9 @@ export default function Dashboard() {
   
   // Track if we've already auto-started a flow this session to prevent loops
   const hasAutoStartedRef = useRef(false);
+
+  // Beer donation dialog state
+  const [showBeerDonation, setShowBeerDonation] = useState(false);
 
   // Parse sobriety duration from user profile, fallback to 30
   const soberDaysTarget = parseSobrietyDurationToDays(
@@ -142,6 +148,19 @@ export default function Dashboard() {
     if (phase === SessionPhase.FIRST_CHECKIN || phase === SessionPhase.REPEAT_CHECKIN) {
       const newFlowState = startSessionFlow(phase);
       setFlowState(newFlowState);
+    }
+  };
+
+  // Beer donation button handler
+  const handleBeerDonation = async () => {
+    try {
+      await navigator.clipboard.writeText(DONATION_ADDRESS);
+      toast.success('Address copied! Now go buy that beer. 🍺', {
+        description: 'Thanks for supporting brutal honesty.',
+      });
+    } catch (error) {
+      // Fallback: show dialog if clipboard fails
+      setShowBeerDonation(true);
     }
   };
 
@@ -338,17 +357,33 @@ export default function Dashboard() {
         isSubmitting={submitFollowUpCheckIn.isPending}
       />
 
+      {/* Beer Donation Dialog */}
+      <BeerDonationDialog
+        open={showBeerDonation}
+        onClose={() => setShowBeerDonation(false)}
+        address={DONATION_ADDRESS}
+      />
+
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 flex-1 max-w-7xl">
-        {/* Manual Check-In Button */}
+        {/* Manual Check-In and Beer Donation Buttons */}
         {showManualCheckIn && (
-          <div className="mb-4 sm:mb-6">
+          <div className="mb-4 sm:mb-6 flex flex-wrap gap-2 sm:gap-3">
             <Button
               onClick={handleManualCheckIn}
               size="lg"
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wider shadow-neon-sm"
+              className="flex-1 sm:flex-initial bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wider shadow-neon-sm"
             >
               <Plus className="w-5 h-5 mr-2" />
               CHECK IN
+            </Button>
+            <Button
+              onClick={handleBeerDonation}
+              size="lg"
+              variant="outline"
+              className="flex-1 sm:flex-initial border-2 border-primary hover:bg-primary hover:text-primary-foreground font-bold uppercase tracking-wider shadow-neon-sm"
+            >
+              <Beer className="w-5 h-5 mr-2" />
+              BUY ME A BEER
             </Button>
           </div>
         )}

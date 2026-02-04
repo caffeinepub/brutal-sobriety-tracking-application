@@ -1,34 +1,33 @@
 {
   "kind": "build_request",
-  "title": "Add app name “BRUTAL” to the sign-in page",
-  "priority": "normal",
+  "title": "Clean rebuild and redeploy after failed deployment",
+  "priority": "high",
   "requirements": [
     {
-      "id": "REQ-5",
-      "text": "Update the sign-in page to display the app name text \"BRUTAL\" in a prominent, on-brand way (e.g., as a heading near the existing logo/title), without altering or re-laying out any other existing sign-in page content beyond what is necessary to insert the name.",
-      "target": "frontend",
+      "id": "REQ-8",
+      "text": "Perform a clean rebuild of the project and redeploy the canisters, ensuring all prior build artifacts/caches are cleared so the deployment runs from a fresh build state.",
+      "target": "unknown",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-6"
         ],
         "quotes": [
-          "can we add the app name on the sign in page? Evertyhing else is fine, do not mess other thing on the sing up page just add the name"
+          "clean rebuild"
         ]
       },
       "acceptanceCriteria": [
-        "The sign-in page visibly shows the app name \"BRUTAL\" as text (not only as image alt text).",
-        "All existing sign-in page sections (logo area, headline/tagline, continue button, feature cards, footer) remain present and functionally unchanged aside from the minimal spacing needed to add the app name.",
-        "No changes are made to onboarding/sign-up flow pages or their UI."
+        "A new deployment completes successfully without the prior failure state recurring due to stale build artifacts.",
+        "The deployed app loads and reaches the normal routing flow (login/onboarding/dashboard) without crashing."
       ]
     }
   ],
   "constraints": [
-    "Do not edit files under frontend/src/components/ui (compose existing UI components only).",
-    "Do not modify any onboarding/sign-up page content; only add the app name to the sign-in page."
+    "Do not introduce new product features; this request is only for a clean rebuild/redeploy.",
+    "Respect the existing single-actor Motoko backend architecture and the frontend immutable paths list."
   ],
   "nonGoals": [
-    "Redesigning the sign-in page layout or changing existing copy besides inserting the app name",
-    "Backend changes"
+    "Implementing any of the listed new feature requests (missed-day popup, milestones, custom domain mapping, XP tracker).",
+    "Refactoring or changing backend schemas/state unless required strictly to complete a clean rebuild."
   ],
   "imageRequirements": {
     "required": [],

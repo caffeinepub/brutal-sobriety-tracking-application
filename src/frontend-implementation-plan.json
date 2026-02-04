@@ -1,21 +1,25 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Add “BRUTAL” app name text to sign-in page",
+  "title": "Clean frontend rebuild support for fresh deploy",
   "requirements": [
     {
-      "id": "REQ-5",
-      "summary": "Display the app name “BRUTAL” prominently on the sign-in page without changing other sign-in content or any onboarding/sign-up pages.",
+      "id": "REQ-8",
+      "summary": "Add frontend-side clean rebuild tooling/docs to ensure builds run from a fresh state without stale artifacts.",
       "acceptanceCriteria": [
-        "The sign-in page visibly shows the app name \"BRUTAL\" as text (not only as image alt text).",
-        "All existing sign-in page sections (logo area, headline/tagline, continue button, feature cards, footer) remain present and functionally unchanged aside from the minimal spacing needed to add the app name.",
-        "No changes are made to onboarding/sign-up flow pages or their UI."
+        "A new deployment completes successfully without the prior failure state recurring due to stale build artifacts.",
+        "The deployed app loads and reaches the normal routing flow (login/onboarding/dashboard) without crashing."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/LoginPage.tsx",
-          "operation": "modify",
-          "description": "Insert a new prominent, on-brand text heading \"BRUTAL\" near the existing logo/title area on the sign-in page, adjusting only minimal spacing/typography as needed to accommodate the new text while leaving all other existing sections and behavior unchanged."
+          "path": "frontend/scripts/clean-rebuild.sh",
+          "operation": "create",
+          "description": "Create a reproducible frontend clean script that removes common local build artifacts/caches (e.g., dist output, tool caches under frontend/, and lock-step reinstall triggers) to support running the deployment from a fresh build state. Keep it focused on cleanup only (no new product features)."
+        },
+        {
+          "path": "frontend/CLEAN_REBUILD.md",
+          "operation": "create",
+          "description": "Add concise frontend-focused instructions for performing a clean rebuild as part of a redeploy (what to delete, when to reinstall dependencies, and how to validate the app reaches normal routing flow). Do not add new features; document only the clean rebuild/redeploy procedure."
         }
       ]
     }

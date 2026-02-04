@@ -2,10 +2,11 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-update-the-sign-in-page-to-display-the-app-name-text-brutal-in-a-prominent-on-brand-way-e-g-as-a-heading-near-the-existing-logo-title-without-altering-or-re-laying-out-any-other-existing-sign-in-page-content-beyond-what-is-necessary-to-insert-the-name",
-      "featureTitle": "Update the sign-in page to display the app name text \"BRUTAL\" in a prominent, on-brand way (e.g., as a heading near the existing logo/title), without altering or re-laying out any other existing sign-in page content beyond what is necessary to insert the name.",
+      "featureId": "feature-perform-a-clean-rebuild-of-the-project-and-redeploy-the-canisters-ensuring-all-prior-build-artifacts-caches-are-cleared-so-the-deployment-runs-from-a-fresh-build-state",
+      "featureTitle": "Perform a clean rebuild of the project and redeploy the canisters, ensuring all prior build artifacts/caches are cleared so the deployment runs from a fresh build state.",
       "files": [
-        "frontend/src/pages/LoginPage.tsx"
+        "frontend/CLEAN_REBUILD.md",
+        "frontend/scripts/clean-rebuild.sh"
       ],
       "components": [
         "authorization@4.0.0",
@@ -16,7 +17,7 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-5"
+        "REQ-8"
       ],
       "confidence": "high"
     }
