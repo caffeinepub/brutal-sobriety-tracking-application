@@ -37,7 +37,7 @@ export default function MotivationButton() {
 
       <BrutalFriendDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onClose={() => setDialogOpen(false)}
         message={currentMessage}
       />
     </>

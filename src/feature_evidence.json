@@ -2,10 +2,29 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-update-the-frontend-fallback-brutal-message-list-used-by-the-motivation-dialog-so-it-includes-the-same-expanded-quote-pool-including-the-30-new-quotes-to-keep-the-ui-consistent-when-a-backend-message-is-missing-empty",
-      "featureTitle": "Update the frontend fallback brutal message list used by the motivation dialog so it includes the same expanded quote pool (including the 30+ new quotes) to keep the UI consistent when a backend message is missing/empty.",
+      "featureId": "feature-fix-the-dashboard-s-centralized-daily-session-flow-initialization-so-the-expected-modal-popups-daily-check-in-repeat-check-in-followed-by-data-logged-and-brutal-friend-reliably-appear-when-the-backend-status-indicates-they-are-needed-including-when-userprofile-loads-after-status",
+      "featureTitle": "Fix the Dashboard’s centralized daily session flow initialization so the expected modal popups (Daily Check-In / Repeat Check-In, followed by Data Logged and Brutal Friend) reliably appear when the backend status indicates they are needed, including when `userProfile` loads after `status`.",
       "files": [
-        "frontend/src/components/BrutalFriendDialog.tsx"
+        "frontend/src/pages/Dashboard.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-1"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-ensure-user-facing-fallback-behavior-exists-when-no-session-modal-is-triggered-phase-idle-so-users-can-still-access-check-in-actions-e-g-a-clearly-labeled-manual-button-or-entry-point-on-the-dashboard-without-relying-on-auto-popups",
+      "featureTitle": "Ensure user-facing fallback behavior exists when no session modal is triggered (phase IDLE), so users can still access check-in actions (e.g., a clearly labeled manual button or entry point on the Dashboard) without relying on auto-popups.",
+      "files": [
+        "frontend/src/pages/Dashboard.tsx"
       ],
       "components": [
         "authorization@4.0.0",

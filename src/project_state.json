@@ -1,238 +1,304 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "BRUTAL is a React + Motoko Internet Computer (ICP) application for alcohol reduction/sobriety tracking with a neon/brutalist UI. Users authenticate via Internet Identity, complete a multi-step onboarding questionnaire (including browser-detected time zone), and then perform daily check-ins capturing sober/drank status, drink count, and mood. A Motoko canister stores per-user profiles and per-day aggregated check-ins, computes progress metrics (sober days, drank days, streak, total check-ins), provides mood trend and last-14-days history, and generates “brutal friend” feedback plus rate-limited motivation messages. The dashboard surfaces these metrics and status cards, and drives check-in/onboarding flow based on backend status flags.",
+  "summary": "BRUTAL is a React (TypeScript) + Motoko Internet Computer (ICP) sobriety/alcohol-reduction tracker with a neon/brutalist UI. Users authenticate via Internet Identity, complete a multi-step onboarding questionnaire (including browser-detected time zone), and then log daily check-ins capturing sober/drank status, drink count, and mood. The Motoko canister persists per-user profiles, aggregates check-ins into per-day summaries, computes progress metrics and mood trend, tracks same-day repeat check-ins (reasons), and serves “brutal friend” feedback plus rate-limited motivation messages. The frontend uses TanStack React Query for typed data access with retries and cache invalidation, and drives a centralized daily modal/session flow (FIFO queue) for daily check-in or repeat check-in, followed by a “data logged” confirmation and brutal feedback.",
   "existing_features": [
     {
       "id": "IF-1",
-      "title": "Internet Identity authentication & session persistence",
+      "title": "Internet Identity authentication with persistent session loading",
       "synonyms": [
         "II login",
         "AuthClient integration",
-        "Identity provider"
+        "delegation persistence"
       ],
-      "description": "Provides login/logout via Internet Identity, loads an existing authenticated session on mount, and exposes identity plus detailed login lifecycle flags through a React context hook.",
+      "description": "Provides login/logout via Internet Identity, loads an existing authenticated session on mount, validates delegations, and exposes identity and login lifecycle flags through a React context hook.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-2",
-      "title": "Canister actor creation (anonymous or authenticated) with caching",
+      "title": "Backend canister actor creation and lifecycle management",
       "synonyms": [
         "useActor",
-        "backend connection hook",
-        "actor initialization"
+        "actor caching",
+        "authenticated/anonymous actor"
       ],
-      "description": "Creates an anonymous actor when logged out and an authenticated actor when logged in; caches the actor via React Query keyed by principal and invalidates/refetches non-actor queries when the actor changes.",
+      "description": "Creates an anonymous actor when logged out and an authenticated actor when logged in; after actor creation it bootstraps access control via a secret and invalidates/refetches React Query caches when the actor changes.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-3",
-      "title": "Role-based access control with secret bootstrap",
+      "title": "Secure URL-hash secret parsing and session persistence",
       "synonyms": [
-        "authorization mixin",
-        "admin/user/guest roles",
-        "AccessControl"
+        "admin token handling",
+        "hash secret",
+        "sessionStorage secret"
       ],
-      "description": "Motoko access control assigns roles during initialization (admin when the provided secret matches the canister’s admin token; otherwise user). Exposes APIs to get caller role, check admin, and assign roles (admin-only).",
+      "description": "Extracts sensitive parameters (e.g., admin bootstrap token) from the URL hash fragment, persists them in sessionStorage, and clears them from the URL to reduce leakage risk.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-4",
-      "title": "Secure secret parameter handling via URL hash + sessionStorage",
+      "title": "Role-based access control with admin bootstrap token",
       "synonyms": [
-        "URL hash secret parsing",
-        "caffeineAdminToken handling",
-        "session token persistence"
+        "AccessControl",
+        "authorization mixin",
+        "admin/user/guest roles"
       ],
-      "description": "Extracts sensitive parameters from the URL hash, persists them in sessionStorage for the session, and removes them from the URL to reduce leakage risk; used to pass an admin bootstrap secret during actor initialization.",
+      "description": "Implements Motoko role management (admin/user/guest). Admin is assigned via a secret token matched against an env var; exposes APIs to query the caller role, check admin status, and assign roles (admin-only).",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-5",
-      "title": "React Query API layer for profiles, status, metrics, and check-ins",
+      "title": "Persistent user profile model with onboarding answers and activity fields",
       "synonyms": [
-        "useQueries",
-        "TanStack Query hooks",
-        "query invalidation"
+        "PersistentUserProfile",
+        "profile persistence",
+        "onboardingAnswers"
       ],
-      "description": "Implements typed query/mutation hooks for backend operations with actor-readiness gating, consistent retry behavior, error logging, and query invalidation after mutations (profile saves, check-ins, follow-ups).",
+      "description": "Stores a per-user profile including onboarding answers (with time zone), completion flag, last check-in markers, aggregated daily entries, repeat check-ins, brutal feedback, and motivation click counters.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-6",
-      "title": "Onboarding questionnaire (multi-step) with progress UI and timezone detection",
+      "title": "Onboarding questionnaire wizard with progress indicator and time zone detection",
       "synonyms": [
-        "setup wizard",
-        "onboarding flow",
-        "UserProfile onboarding"
+        "setup flow",
+        "multi-step onboarding",
+        "timezone detection"
       ],
-      "description": "Multi-step onboarding collects baseline answers (age range, drinks/week, motivation, secondary substance, sobriety duration), detects browser time zone, shows connection/saving status, and persists the profile to the backend.",
+      "description": "Guides first-time users through a multi-step questionnaire, auto-advances on selection, detects browser time zone, shows connection/saving/error states, and saves the completed profile to the canister.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-7",
-      "title": "Onboarding + daily check-in status endpoint and gating",
+      "title": "Onboarding and daily-status backend API for flow gating",
       "synonyms": [
         "checkOnboardingAndCheckInStatus",
-        "needsDailyCheckIn",
-        "first login flow"
+        "daily status flags",
+        "dailyCheckInsToday"
       ],
-      "description": "Backend computes flags for onboarding completion and daily check-in needs. Frontend uses these flags to decide between onboarding vs dashboard and to trigger check-in/follow-up dialogs.",
+      "description": "Backend exposes a status object containing onboarding requirement, daily check-in requirement, follow-up signal, and today’s check-in count; frontend uses it to decide which session flow to start.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-8",
-      "title": "Daily check-in capture (sober/drinks/mood) with feedback flow",
+      "title": "Daily check-in submission and per-day aggregation",
       "synonyms": [
-        "DailyCheckInDialog",
         "submitCheckIn",
-        "daily modal"
+        "AggregatedEntry merging",
+        "day bucketing"
       ],
-      "description": "Modal prompts for sober vs drank, drink count (if drank), and mood selection; uses session guards to prevent duplicate openings; generates a local feedback line and then shows backend-provided brutal-friend feedback after submission.",
+      "description": "Submits daily check-ins (sober/drinks/mood), normalizes to a day bucket, merges multiple check-ins for the same day (sum drinks, increment checkInCount), updates profile markers, and returns a brutal feedback message.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-9",
-      "title": "Follow-up check-in for additional drinks later the same day",
+      "title": "Daily check-in dialog (controlled modal) with validation",
       "synonyms": [
-        "FollowUpCheckInDialog",
-        "submitFollowUpCheckIn",
-        "same-day update"
+        "DailyCheckInDialog",
+        "daily modal",
+        "sober/drinks/mood form"
       ],
-      "description": "When backend indicates a follow-up is needed, prompts the user to confirm sobriety or add more drinks for the day; submits additional drinks and shows feedback plus a brutal-friend message when applicable.",
+      "description": "A fully controlled modal that collects sobriety status, drink count (when applicable), and mood; validates inputs and calls an externally supplied submit handler. It contains no self-triggering modal logic.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-10",
-      "title": "Per-day aggregation and last-14-days retrieval",
+      "title": "Repeat check-in event logging with reason taxonomy",
       "synonyms": [
-        "AggregatedEntry",
-        "getLast14Days",
-        "daily bucketing"
+        "submitRepeatCheckIn",
+        "repeatCheckIns",
+        "same-day reflection"
       ],
-      "description": "Backend normalizes timestamps into day buckets and merges multiple check-ins for the same day (sum drinks, combine sober state, update mood, increment check-in count). Provides a last-14-days aggregated history used for charting and status sections.",
+      "description": "Allows users to log a same-day repeat check-in with a structured reason (reflection/urge/bored/habit/curiosity) stored in the profile as a separate event stream from drink follow-ups.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-11",
-      "title": "Progress metrics and streak computation",
+      "title": "Repeat check-in dialog (“Why are you back so soon?”)",
       "synonyms": [
-        "getProgressMetrics",
-        "ProgressStats",
-        "streak tracking"
+        "RepeatCheckInDialog",
+        "repeat session modal"
       ],
-      "description": "Backend computes sober days, drank days, current streak, and total check-ins; frontend converts bigints safely and renders themed stat cards with loading skeletons.",
+      "description": "Controlled modal that prompts the user to select a repeat-check-in reason from predefined options with descriptions and icons, then submits it via an external handler.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-12",
-      "title": "Mood trend and recent mood display",
+      "title": "Follow-up check-in to add more drinks after a prior check-in",
       "synonyms": [
-        "getMoodTrend",
-        "MoodIndicator",
-        "mood average"
+        "submitFollowUpCheckIn",
+        "FollowUpCheckInDialog",
+        "same-day drink update"
       ],
-      "description": "Check-ins include an optional mood (happy/neutral/sad). Backend computes a simple average mood trend; frontend displays the most recent mood from history and supports loading states.",
+      "description": "Backend API to append a same-day follow-up entry (additional drinks) and update brutal feedback; frontend provides a controlled dialog to confirm sobriety or submit additional drinks.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-13",
-      "title": "Brutal Friend feedback generation, storage, and display",
+      "title": "Centralized daily session flow state machine",
       "synonyms": [
-        "getLatestBrutalFriendFeedback",
-        "BrutalFriendDialog",
-        "feedback cards"
+        "dailySessionFlow",
+        "SessionPhase resolver",
+        "session controller"
       ],
-      "description": "Backend generates sarcastic feedback and stores the latest per user. Frontend fetches and displays it on the dashboard and in dialogs with safe string handling and fallbacks.",
+      "description": "Implements a deterministic resolver that maps status into a single SessionPhase (ONBOARDING/FIRST_CHECKIN/REPEAT_CHECKIN/IDLE) and provides state helpers to start, advance, and end a session flow.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-14",
-      "title": "Motivation messages with daily click limit",
+      "title": "Single-modal FIFO queue for daily session dialogs",
       "synonyms": [
-        "getMotivationMessage",
-        "Need Motivation button",
-        "rate limit"
+        "modal queue",
+        "DailyCheckIn → DataLogged → BrutalFriend",
+        "repeat queue"
       ],
-      "description": "Backend provides motivation messages with a per-user daily limit (3/day) tracked by day bucket counters. Frontend requests messages via a mutation and displays them in a BrutalFriendDialog, showing remaining clicks/limit reached states.",
+      "description": "Generates a FIFO modal queue from the SessionPhase to ensure only one modal is open at any time. Dashboard advances the queue via centralized close handlers and displays the corresponding controlled dialogs.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-15",
-      "title": "Dashboard visualization and derived status cards",
+      "title": "“Data Logged” confirmation dialog with primary/secondary variants",
       "synonyms": [
-        "DrinksChart",
-        "StatusIndicatorsSection",
-        "dashboard layout"
+        "DataLoggedDialog",
+        "post-submit confirmation"
       ],
-      "description": "Dashboard composes unified header (feedback + motivation), placeholder risk and cycle cards, sober streak/target section, today/yesterday/weekly-average status indicators derived from aggregated entries, and a 14-day drinks bar chart.",
+      "description": "Controlled confirmation modal that displays a feedback message after a daily or repeat check-in, with a variant label to distinguish first check-in vs same-day update.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-16",
-      "title": "Dynamic sober-days target derived from onboarding sobriety duration",
+      "title": "Brutal Friend feedback generation and display (backend + frontend fallback)",
       "synonyms": [
-        "SoberDaysSection target",
-        "sobrietyDuration parsing"
+        "getLatestBrutalFriendFeedback",
+        "BrutalFriendDialog",
+        "fallback quote pool"
       ],
-      "description": "Parses the user’s onboarding sobrietyDuration (e.g., “2 days”, “1 week”, “1 month”) into a numeric day target for the dashboard, with a fallback of 30 days.",
+      "description": "Backend generates and stores a “brutal friend” message; frontend fetches and displays it in dashboard cards and dialogs, falling back to a local pool of quotes when no message is available.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-17",
-      "title": "Global error boundary and resilient loading fallbacks",
+      "title": "Motivation message API with daily click limit and UI controls",
       "synonyms": [
-        "GlobalErrorBoundary",
-        "black-screen prevention",
-        "recovery screen"
+        "getMotivationMessage",
+        "Need Motivation button",
+        "3-per-day limit"
       ],
-      "description": "Wraps the application routes in a React error boundary that logs uncaught errors and shows a user-facing recovery screen with a reload button; includes robust loading/timeout fallbacks during authentication, actor initialization, and status resolution.",
+      "description": "Backend returns a motivation message with remaining-click tracking and a daily limit; frontend exposes a button that fetches messages via mutation and displays them in a dialog while disabling when the limit is reached.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-18",
-      "title": "Logout clears identity and client-side caches",
+      "title": "Progress metrics computation and dashboard stat components",
       "synonyms": [
-        "logout",
-        "clear session",
-        "query cache reset"
+        "getProgressMetrics",
+        "ProgressStats",
+        "SoberDaysSection"
       ],
-      "description": "Logout calls Internet Identity logout/clear and clears the React Query cache to remove user-specific data from the client state.",
+      "description": "Backend computes sober days, drank days, current streak, and total check-ins; frontend renders multiple stat/summary cards and a sober-streak vs target section (target derived from onboarding).",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-19",
-      "title": "Neon/brutalist design system and reusable UI primitives",
+      "title": "Recent history retrieval and 14-day drinks chart",
       "synonyms": [
-        "Tailwind OKLCH theme",
-        "shadcn UI",
-        "brutal-card utilities"
+        "getLast14Days",
+        "DrinksChart",
+        "update highlighting"
       ],
-      "description": "Implements a consistent dark neon/brutalist theme using OKLCH CSS variables, Tailwind extensions (shadows/animations), and reusable UI primitives (Dialog, Card, Button) across login, onboarding, dialogs, and dashboard.",
+      "description": "Backend serves recent aggregated entries; frontend renders a 14-day bar chart using consistent day normalization and shows loading/updating/synced indicators based on fetch state and data changes.",
       "reqIds": [],
       "version": 1
     },
     {
-      "id": "feature-update-the-frontend-fallback-brutal-message-list-used-by-the-motivation-dialog-so-it-includes-the-same-expanded-quote-pool-including-the-30-new-quotes-to-keep-the-ui-consistent-when-a-backend-message-is-missing-empty",
-      "title": "Update the frontend fallback brutal message list used by the motivation dialog so it includes the same expanded quote pool (including the 30+ new quotes) to keep the UI consistent when a backend message is missing/empty.",
+      "id": "IF-20",
+      "title": "Derived weekly/yesterday/today status indicators from aggregated history",
+      "synonyms": [
+        "StatusIndicatorsSection",
+        "weekly average card",
+        "today/yesterday cards"
+      ],
+      "description": "Computes and displays simple drinking-status labels (Sober/Few Drinks/Drunk/Not Sure) for weekly average, yesterday, and today based on aggregated entries using the same day bucketing logic.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-21",
+      "title": "Mood tracking and mood trend endpoint with UI indicator",
+      "synonyms": [
+        "Mood enum",
+        "getMoodTrend",
+        "MoodIndicator"
+      ],
+      "description": "Check-ins can include mood (happy/neutral/sad). Backend provides a basic averaged mood trend metric; frontend shows the most recent mood in a styled indicator card.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-22",
+      "title": "App-level routing, resilient startup states, and error boundary",
+      "synonyms": [
+        "App.tsx gating",
+        "connection timeouts",
+        "GlobalErrorBoundary"
+      ],
+      "description": "App gates views by authentication, actor readiness, and onboarding status; includes loading timeouts, connection retry tracking, toasts on failures, and a global error boundary to avoid blank screens.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-23",
+      "title": "Neon/brutalist design system (Tailwind + shadcn primitives)",
+      "synonyms": [
+        "OKLCH theme tokens",
+        "brutal-card utilities",
+        "neon glow"
+      ],
+      "description": "Defines a consistent brutalist dark theme using OKLCH CSS variables, Tailwind extensions (shadows/animations), and reusable UI primitives (Dialog/Card/Button) across the app.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-24",
+      "title": "Canister state migration for schema evolution",
+      "synonyms": [
+        "migration.mo",
+        "repeatCheckIns migration"
+      ],
+      "description": "Includes a migration that transforms older stored user profile state into the new schema by adding repeatCheckIns and preserving existing profile fields.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-the-dashboard-s-centralized-daily-session-flow-initialization-so-the-expected-modal-popups-daily-check-in-repeat-check-in-followed-by-data-logged-and-brutal-friend-reliably-appear-when-the-backend-status-indicates-they-are-needed-including-when-userprofile-loads-after-status",
+      "title": "Fix the Dashboard’s centralized daily session flow initialization so the expected modal popups (Daily Check-In / Repeat Check-In, followed by Data Logged and Brutal Friend) reliably appear when the backend status indicates they are needed, including when `userProfile` loads after `status`.",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-ensure-user-facing-fallback-behavior-exists-when-no-session-modal-is-triggered-phase-idle-so-users-can-still-access-check-in-actions-e-g-a-clearly-labeled-manual-button-or-entry-point-on-the-dashboard-without-relying-on-auto-popups",
+      "title": "Ensure user-facing fallback behavior exists when no session modal is triggered (phase IDLE), so users can still access check-in actions (e.g., a clearly labeled manual button or entry point on the Dashboard) without relying on auto-popups.",
       "reqIds": [
         "REQ-2"
       ],
@@ -242,46 +308,36 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Add at least 30 new \"Need Motivation\" brutal-friend motivational quotes referencing onboarding/context (ageRange, secondarySubstance incl. games/porn, motivation lens such as family/health/sport), for use via feedbackMatrix selection.",
+      "summary": "Centralize all modal/popup orchestration via a single Daily Session Flow controller (SessionPhase resolver + deterministic popup FIFO queue) so onboarding/first-checkin/repeat-checkin/data-logged/friend-feedback run exactly once per session in order and never self-trigger.",
       "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-2",
-      "summary": "Add at least 30 NEW motivational/brutal-friend quotes (in English) that are cheeky, fun, brutally friendly, and honest, and that explicitly reference: age (age range), other drugs/habits including games and porn, family, health, and sports performance. These quotes must be appended to the existing quote pool used by the backend motivation/feedback message generator.",
-      "reqIds": [
-        "REQ-1"
-      ],
       "status": "pending"
     }
   ],
   "architectural_notes": [
-    "Frontend is a React SPA using TanStack React Query for typed data fetching, caching, retries (exponential backoff), and mutation-driven query invalidation.",
-    "Authentication is handled via Internet Identity using @dfinity/auth-client, exposed through a React context hook with login lifecycle state.",
-    "ICP backend communication is via a generated canister actor created in a custom hook (useActor) and cached in React Query keyed by principal.",
-    "Actor initialization calls a canister bootstrap method to assign roles (admin/user) using a secret token flow.",
-    "Backend is a Motoko canister with an authorization mixin (MixinAuthorization) built on an AccessControl module (role-based permissions).",
-    "User check-ins are normalized into day buckets using a fixed 6-hour offset before flooring to day boundaries; frontend charts/status cards replicate this normalization for alignment.",
-    "UI is built with Tailwind CSS + shadcn/Radix-style components, using OKLCH CSS variables, neon glow utilities, and brutalist card styling.",
-    "A global React Error Boundary wraps the app to prevent blank screens on uncaught render/runtime errors and provides a reload recovery UI."
+    "Frontend is a React SPA using TanStack React Query for typed queries/mutations, retries, caching, and targeted invalidation.",
+    "Authentication uses Internet Identity via a dedicated provider/hook that loads persisted delegations and exposes login lifecycle flags.",
+    "Backend access uses a generated ICP canister actor created in a custom hook (useActor), keyed by principal, with dependent-query invalidation when the actor changes.",
+    "Backend is a Motoko canister with a Principal-keyed Map of user profiles and List-based storage for aggregatedEntries/repeatCheckIns.",
+    "Authorization is implemented as an AccessControl module plus a Motoko mixin exposing role APIs and an admin bootstrap via an env token.",
+    "Daily “session dialogs” are orchestrated by a deterministic state machine (SessionPhase + ModalType) and a FIFO modal queue to ensure a single visible modal at a time.",
+    "Day bucketing is normalized using a fixed 6-hour offset on both backend and frontend to align charting/status computations.",
+    "UI uses Tailwind + shadcn/Radix-style primitives (Dialog/Card/Button) with an OKLCH token-based neon/brutalist theme.",
+    "Canister state evolution is handled with a migration module that maps older stored profile formats to the new schema.",
+    "Numeric canister types (Nat/Nat64) are represented as bigint in the frontend and converted to number for display."
   ],
   "known_issues": [
-    "Backend state is not upgrade-stable: userProfiles and access-control role mappings are stored in in-memory Maps/vars with no stable serialization, so data will be lost on canister upgrade/reinstall.",
-    "Time zone handling is inconsistent: onboarding stores a timeZone string, but day bucketing uses a hardcoded 6-hour offset and does not apply the stored time zone or DST rules.",
-    "saveCallerUserProfile overwrites/initializes persistent fields (notably aggregatedEntries) which will erase prior tracking history if the profile is saved again after check-ins exist.",
-    "checkOnboardingAndCheckInStatus uses currentDayCheckInStatus as if it indicates sobriety (lastLoginWasSober), but the backend sets currentDayCheckInStatus to ?true on check-in; it is never set to ?false, so “lastLoginWasSober” is misleading/incorrect.",
-    "Follow-up flow is logically incomplete: backend sets needsFollowUp for any same-day login after a check-in, and the frontend “Remained sober” action does not update backend state, so follow-ups can reappear the same day across sessions.",
-    "getMotivationMessage creates an implicit profile when none exists and sets lastCheckInDate/currentDayCheckInStatus, which can incorrectly affect daily check-in gating for new users.",
-    "Unauthenticated/anonymous actor usage can still trigger authorized queries (e.g., status) because the actor exists even when not logged in; backend traps for non-#user callers, potentially causing noisy errors/toasts unless additionally gated by authentication.",
-    "_initializeAccessControlWithSecret traps if CAFFEINE_ADMIN_TOKEN is not set in the canister environment, which can prevent all authenticated actor initialization in misconfigured deployments.",
-    "submitFollowUpCheckIn does not update currentDayTotalDrinks, so returned/derived totals may be inconsistent with aggregatedEntries.",
-    "getProgressMetrics returns last14Days as a slice of the full entries array (not actually limited to 14 days), which can inflate payload size and mismatch UI expectations.",
-    "Brutal-friend “randomness” is time-derived and predictable; the condition parameter is currently ignored in message selection.",
-    "CycleWindowCard uses a hardcoded 2026 full-moon table but constructs dates using the current year, producing incorrect results outside that dataset.",
-    "ChanceOfDrinkingCard is placeholder logic (randomized) and not based on real user behavior.",
-    "Motivation click limits are enforced in the backend, but the frontend also keeps a local remaining-clicks counter that can become out of sync on refresh or multi-device use."
+    "useCheckOnboardingAndCheckInStatus can execute with an anonymous actor (hook runs regardless of auth), causing backend traps (“Unauthorized”) and noisy errors before login.",
+    "saveCallerUserProfile replaces the entire stored profile; if reused for partial edits later, it can accidentally overwrite/erase historical aggregatedEntries and counters.",
+    "currentDayCheckInStatus is set to ?true for both sober and drinking check-ins, so it does not actually represent sober vs drank; fields like lastLoginWasSober become unreliable.",
+    "Follow-up handling is incomplete: needsFollowUp is computed for same-day logins, but the frontend follow-up dialog is not triggered from status and “remained sober” does not persist any backend state, so prompts/logic can be inconsistent.",
+    "currentDayTotalDrinks is inconsistently maintained: submitCheckIn computes totals in a way that can double-count/miscount, and submitFollowUpCheckIn does not update currentDayTotalDrinks at all.",
+    "getProgressMetrics returns last14Days as the full entries array (not limited to 14) and does not sort by date; streak and “most recent mood” derived from array order may be incorrect.",
+    "Time zone is collected during onboarding but not used for day normalization; the fixed 6-hour offset ignores user time zones and DST.",
+    "Dashboard’s session flow phase is resolved only once per mount (hasInitialized gate) and is not re-resolved after dialogs close or after later state changes, which can miss transitions without reload.",
+    "getMotivationMessage initializes a new profile and sets lastCheckInDate/currentDayCheckInStatus to “today”, which can interfere with daily check-in gating for new users.",
+    "CycleWindowCard uses a hardcoded 2026 full-moon table but applies the current year, making results incorrect outside that dataset (and the table itself is incomplete)."
   ],
-  "isFixRequest": false,
+  "isFixRequest": true,
   "gameProjectType": "none",
   "projectName": "BRUTAL - Sobriety Tracking",
   "clarification_mode": "instant",

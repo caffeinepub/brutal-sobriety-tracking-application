@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { Skull, CheckCircle2, AlertCircle, Wifi, WifiOff } from 'lucide-react';
-import type { UserProfile } from '../backend';
+import type { PersistentUserProfileView } from '../backend';
 
 const questions = [
   {
@@ -109,8 +109,8 @@ export default function OnboardingFlow() {
       const timeZone = detectTimeZone();
       console.log('Detected time zone:', timeZone);
 
-      // Create UserProfile with correct structure matching backend including timeZone
-      const userProfile: UserProfile = {
+      // Create PersistentUserProfileView with correct structure matching backend including timeZone
+      const userProfile: PersistentUserProfileView = {
         onboardingAnswers: {
           ageRange: finalAnswers.ageRange,
           drinksPerWeek: finalAnswers.drinksPerWeek,
@@ -120,6 +120,14 @@ export default function OnboardingFlow() {
           timeZone: timeZone,
         },
         hasCompletedOnboarding: true,
+        lastCheckInDate: undefined,
+        currentDayCheckInStatus: undefined,
+        aggregatedEntries: [],
+        repeatCheckIns: [],
+        currentDayTotalDrinks: BigInt(0),
+        lastBrutalFriendFeedback: '',
+        motivationButtonClicks: BigInt(0),
+        lastMotivationClickDay: BigInt(0),
       };
 
       console.log('Saving user profile:', userProfile);

@@ -34,12 +34,27 @@ export interface OnboardingAnswers {
   'motivation' : string,
   'timeZone' : string,
 }
-export interface UserProfile {
+export interface PersistentUserProfileView {
   'lastCheckInDate' : [] | [bigint],
+  'aggregatedEntries' : Array<AggregatedEntry>,
+  'lastMotivationClickDay' : bigint,
+  'motivationButtonClicks' : bigint,
   'onboardingAnswers' : OnboardingAnswers,
+  'lastBrutalFriendFeedback' : string,
+  'repeatCheckIns' : Array<RepeatCheckIn>,
   'currentDayCheckInStatus' : [] | [boolean],
   'hasCompletedOnboarding' : boolean,
+  'currentDayTotalDrinks' : bigint,
 }
+export interface RepeatCheckIn {
+  'timestamp' : bigint,
+  'reason' : RepeatCheckInReason,
+}
+export type RepeatCheckInReason = { 'habit' : null } |
+  { 'urge' : null } |
+  { 'curiosity' : null } |
+  { 'bored' : null } |
+  { 'reflection' : null };
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
@@ -53,11 +68,12 @@ export interface _SERVICE {
       'isFirstLoginOfDay' : boolean,
       'isDailyCheckInCompleted' : boolean,
       'needsOnboarding' : boolean,
+      'dailyCheckInsToday' : bigint,
       'lastLoginWasSober' : bigint,
       'needsFollowUp' : boolean,
     }
   >,
-  'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
+  'getCallerUserProfile' : ActorMethod<[], [] | [PersistentUserProfileView]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getLast14Days' : ActorMethod<[], Array<AggregatedEntry>>,
   'getLatestBrutalFriendFeedback' : ActorMethod<[], string>,
@@ -80,15 +96,16 @@ export interface _SERVICE {
       'currentStreak' : bigint,
     }
   >,
-  'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
+  'getUserProfile' : ActorMethod<[Principal], [] | [PersistentUserProfileView]>,
   'getUserTimeZone' : ActorMethod<[], string>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
-  'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'saveCallerUserProfile' : ActorMethod<[PersistentUserProfileView], undefined>,
   'submitCheckIn' : ActorMethod<
     [CheckInEntry],
     { 'date' : bigint, 'message' : string, 'totalDrinks' : bigint }
   >,
   'submitFollowUpCheckIn' : ActorMethod<[bigint], string>,
+  'submitRepeatCheckIn' : ActorMethod<[RepeatCheckInReason], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

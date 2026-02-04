@@ -1,43 +1,46 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-04T11:41:32.211Z",
+  "generatedAt": "2026-02-04T12:58:04.179Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
     "total": 2,
-    "implemented": 1,
+    "implemented": 2,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "Add at least 30 NEW motivational/brutal-friend quotes (in English) that are cheeky, fun, brutally friendly, and honest, and that explicitly reference: age (age range), other drugs/habits including games and porn, family, health, and sports performance. These quotes must be appended to the existing quote pool used by the backend motivation/feedback message generator.",
-        "status": "unknown",
-        "plannedFiles": [],
-        "matchedFiles": []
+        "summary": "Fix the Dashboard’s centralized daily session flow initialization so the expected modal popups (Daily Check-In / Repeat Check-In, followed by Data Logged and Brutal Friend) reliably appear when the backend status indicates they are needed, including when `userProfile` loads after `status`.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/pages/Dashboard.tsx",
+          "frontend/src/session/dailySessionFlow.ts"
+        ],
+        "matchedFiles": [
+          "frontend/src/pages/Dashboard.tsx"
+        ]
       },
       {
         "id": "REQ-2",
-        "summary": "Update the frontend fallback brutal message list used by the motivation dialog so it includes the same expanded quote pool (including the 30+ new quotes) to keep the UI consistent when a backend message is missing/empty.",
+        "summary": "Ensure user-facing fallback behavior exists when no session modal is triggered (phase IDLE), so users can still access check-in actions (e.g., a clearly labeled manual button or entry point on the Dashboard) without relying on auto-popups.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/components/BrutalFriendDialog.tsx"
+          "frontend/src/pages/Dashboard.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/components/BrutalFriendDialog.tsx"
+          "frontend/src/pages/Dashboard.tsx"
         ]
       }
     ]
   },
   "changedFiles": [
-    "backend/main.mo",
-    "backend/migration.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/components/BrutalFriendDialog.tsx",
+    "frontend/src/pages/Dashboard.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

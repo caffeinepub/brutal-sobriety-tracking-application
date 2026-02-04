@@ -13,20 +13,6 @@ export const UserRole = IDL.Variant({
   'user' : IDL.Null,
   'guest' : IDL.Null,
 });
-export const OnboardingAnswers = IDL.Record({
-  'drinksPerWeek' : IDL.Text,
-  'secondarySubstance' : IDL.Text,
-  'sobrietyDuration' : IDL.Text,
-  'ageRange' : IDL.Text,
-  'motivation' : IDL.Text,
-  'timeZone' : IDL.Text,
-});
-export const UserProfile = IDL.Record({
-  'lastCheckInDate' : IDL.Opt(IDL.Nat64),
-  'onboardingAnswers' : OnboardingAnswers,
-  'currentDayCheckInStatus' : IDL.Opt(IDL.Bool),
-  'hasCompletedOnboarding' : IDL.Bool,
-});
 export const Mood = IDL.Variant({
   'sad' : IDL.Null,
   'happy' : IDL.Null,
@@ -38,6 +24,37 @@ export const AggregatedEntry = IDL.Record({
   'sober' : IDL.Bool,
   'checkInCount' : IDL.Nat,
   'drinks' : IDL.Nat,
+});
+export const OnboardingAnswers = IDL.Record({
+  'drinksPerWeek' : IDL.Text,
+  'secondarySubstance' : IDL.Text,
+  'sobrietyDuration' : IDL.Text,
+  'ageRange' : IDL.Text,
+  'motivation' : IDL.Text,
+  'timeZone' : IDL.Text,
+});
+export const RepeatCheckInReason = IDL.Variant({
+  'habit' : IDL.Null,
+  'urge' : IDL.Null,
+  'curiosity' : IDL.Null,
+  'bored' : IDL.Null,
+  'reflection' : IDL.Null,
+});
+export const RepeatCheckIn = IDL.Record({
+  'timestamp' : IDL.Nat64,
+  'reason' : RepeatCheckInReason,
+});
+export const PersistentUserProfileView = IDL.Record({
+  'lastCheckInDate' : IDL.Opt(IDL.Nat64),
+  'aggregatedEntries' : IDL.Vec(AggregatedEntry),
+  'lastMotivationClickDay' : IDL.Nat64,
+  'motivationButtonClicks' : IDL.Nat,
+  'onboardingAnswers' : OnboardingAnswers,
+  'lastBrutalFriendFeedback' : IDL.Text,
+  'repeatCheckIns' : IDL.Vec(RepeatCheckIn),
+  'currentDayCheckInStatus' : IDL.Opt(IDL.Bool),
+  'hasCompletedOnboarding' : IDL.Bool,
+  'currentDayTotalDrinks' : IDL.Nat,
 });
 export const CheckInEntry = IDL.Record({
   'date' : IDL.Nat64,
@@ -57,13 +74,18 @@ export const idlService = IDL.Service({
           'isFirstLoginOfDay' : IDL.Bool,
           'isDailyCheckInCompleted' : IDL.Bool,
           'needsOnboarding' : IDL.Bool,
+          'dailyCheckInsToday' : IDL.Nat,
           'lastLoginWasSober' : IDL.Int,
           'needsFollowUp' : IDL.Bool,
         }),
       ],
       [],
     ),
-  'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+  'getCallerUserProfile' : IDL.Func(
+      [],
+      [IDL.Opt(PersistentUserProfileView)],
+      ['query'],
+    ),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getLast14Days' : IDL.Func([], [IDL.Vec(AggregatedEntry)], ['query']),
   'getLatestBrutalFriendFeedback' : IDL.Func([], [IDL.Text], ['query']),
@@ -94,12 +116,12 @@ export const idlService = IDL.Service({
     ),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
-      [IDL.Opt(UserProfile)],
+      [IDL.Opt(PersistentUserProfileView)],
       ['query'],
     ),
   'getUserTimeZone' : IDL.Func([], [IDL.Text], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
-  'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'saveCallerUserProfile' : IDL.Func([PersistentUserProfileView], [], []),
   'submitCheckIn' : IDL.Func(
       [CheckInEntry],
       [
@@ -112,6 +134,7 @@ export const idlService = IDL.Service({
       [],
     ),
   'submitFollowUpCheckIn' : IDL.Func([IDL.Nat], [IDL.Text], []),
+  'submitRepeatCheckIn' : IDL.Func([RepeatCheckInReason], [], []),
 });
 
 export const idlInitArgs = [];
@@ -121,20 +144,6 @@ export const idlFactory = ({ IDL }) => {
     'admin' : IDL.Null,
     'user' : IDL.Null,
     'guest' : IDL.Null,
-  });
-  const OnboardingAnswers = IDL.Record({
-    'drinksPerWeek' : IDL.Text,
-    'secondarySubstance' : IDL.Text,
-    'sobrietyDuration' : IDL.Text,
-    'ageRange' : IDL.Text,
-    'motivation' : IDL.Text,
-    'timeZone' : IDL.Text,
-  });
-  const UserProfile = IDL.Record({
-    'lastCheckInDate' : IDL.Opt(IDL.Nat64),
-    'onboardingAnswers' : OnboardingAnswers,
-    'currentDayCheckInStatus' : IDL.Opt(IDL.Bool),
-    'hasCompletedOnboarding' : IDL.Bool,
   });
   const Mood = IDL.Variant({
     'sad' : IDL.Null,
@@ -147,6 +156,37 @@ export const idlFactory = ({ IDL }) => {
     'sober' : IDL.Bool,
     'checkInCount' : IDL.Nat,
     'drinks' : IDL.Nat,
+  });
+  const OnboardingAnswers = IDL.Record({
+    'drinksPerWeek' : IDL.Text,
+    'secondarySubstance' : IDL.Text,
+    'sobrietyDuration' : IDL.Text,
+    'ageRange' : IDL.Text,
+    'motivation' : IDL.Text,
+    'timeZone' : IDL.Text,
+  });
+  const RepeatCheckInReason = IDL.Variant({
+    'habit' : IDL.Null,
+    'urge' : IDL.Null,
+    'curiosity' : IDL.Null,
+    'bored' : IDL.Null,
+    'reflection' : IDL.Null,
+  });
+  const RepeatCheckIn = IDL.Record({
+    'timestamp' : IDL.Nat64,
+    'reason' : RepeatCheckInReason,
+  });
+  const PersistentUserProfileView = IDL.Record({
+    'lastCheckInDate' : IDL.Opt(IDL.Nat64),
+    'aggregatedEntries' : IDL.Vec(AggregatedEntry),
+    'lastMotivationClickDay' : IDL.Nat64,
+    'motivationButtonClicks' : IDL.Nat,
+    'onboardingAnswers' : OnboardingAnswers,
+    'lastBrutalFriendFeedback' : IDL.Text,
+    'repeatCheckIns' : IDL.Vec(RepeatCheckIn),
+    'currentDayCheckInStatus' : IDL.Opt(IDL.Bool),
+    'hasCompletedOnboarding' : IDL.Bool,
+    'currentDayTotalDrinks' : IDL.Nat,
   });
   const CheckInEntry = IDL.Record({
     'date' : IDL.Nat64,
@@ -166,13 +206,18 @@ export const idlFactory = ({ IDL }) => {
             'isFirstLoginOfDay' : IDL.Bool,
             'isDailyCheckInCompleted' : IDL.Bool,
             'needsOnboarding' : IDL.Bool,
+            'dailyCheckInsToday' : IDL.Nat,
             'lastLoginWasSober' : IDL.Int,
             'needsFollowUp' : IDL.Bool,
           }),
         ],
         [],
       ),
-    'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+    'getCallerUserProfile' : IDL.Func(
+        [],
+        [IDL.Opt(PersistentUserProfileView)],
+        ['query'],
+      ),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getLast14Days' : IDL.Func([], [IDL.Vec(AggregatedEntry)], ['query']),
     'getLatestBrutalFriendFeedback' : IDL.Func([], [IDL.Text], ['query']),
@@ -203,12 +248,12 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
-        [IDL.Opt(UserProfile)],
+        [IDL.Opt(PersistentUserProfileView)],
         ['query'],
       ),
     'getUserTimeZone' : IDL.Func([], [IDL.Text], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
-    'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'saveCallerUserProfile' : IDL.Func([PersistentUserProfileView], [], []),
     'submitCheckIn' : IDL.Func(
         [CheckInEntry],
         [
@@ -221,6 +266,7 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'submitFollowUpCheckIn' : IDL.Func([IDL.Nat], [IDL.Text], []),
+    'submitRepeatCheckIn' : IDL.Func([RepeatCheckInReason], [], []),
   });
 };
 

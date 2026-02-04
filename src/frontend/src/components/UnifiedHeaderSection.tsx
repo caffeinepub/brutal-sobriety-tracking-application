@@ -107,7 +107,7 @@ export default function UnifiedHeaderSection() {
 
       <BrutalFriendDialog
         open={showDialog}
-        onOpenChange={setShowDialog}
+        onClose={() => setShowDialog(false)}
         message={motivationMessage}
       />
     </>

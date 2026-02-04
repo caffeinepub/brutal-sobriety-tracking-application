@@ -5,7 +5,7 @@ import { Skull } from 'lucide-react';
 
 interface BrutalFriendDialogProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   message?: string;
 }
 
@@ -69,7 +69,7 @@ const brutalMessages = [
   "Your family would prefer your presence, not your drunken absence.",
 ];
 
-export default function BrutalFriendDialog({ open, onOpenChange, message }: BrutalFriendDialogProps) {
+export default function BrutalFriendDialog({ open, onClose, message }: BrutalFriendDialogProps) {
   const [displayMessage, setDisplayMessage] = useState('');
 
   // Use provided message from backend, or pick a random one as fallback
@@ -85,7 +85,7 @@ export default function BrutalFriendDialog({ open, onOpenChange, message }: Brut
   }, [open, message]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="sm:max-w-md bg-popover border-2 border-primary z-[110]">
         <div className="py-8 space-y-8">
           {/* Icon */}
@@ -107,7 +107,7 @@ export default function BrutalFriendDialog({ open, onOpenChange, message }: Brut
 
           {/* Dismiss Button */}
           <Button
-            onClick={() => onOpenChange(false)}
+            onClick={onClose}
             className="w-full bg-primary hover:bg-primary/90 font-bold uppercase tracking-wider border-2 border-primary text-sm"
           >
             Shut up, I'm trying.

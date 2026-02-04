@@ -1,53 +1,53 @@
 {
   "kind": "build_request",
-  "title": "Add 30+ new brutal motivational quotes referencing age, other drugs, family, health, and sports performance",
-  "priority": "normal",
+  "title": "Fix daily session popups not appearing on Dashboard",
+  "priority": "high",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Add at least 30 NEW motivational/brutal-friend quotes (in English) that are cheeky, fun, brutally friendly, and honest, and that explicitly reference: age (age range), other drugs/habits including games and porn, family, health, and sports performance. These quotes must be appended to the existing quote pool used by the backend motivation/feedback message generator.",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "msg-5"
-        ],
-        "quotes": [
-          "great, now we need to add more motivational quotes, make them brutal and reference age, other drugs including games and porn, family, health and sports performance in a cheeky fun and brutal friendly and honest way, add at least 30 of them"
-        ]
-      },
-      "acceptanceCriteria": [
-        "backend/main.mo contains at least 30 additional unique quotes beyond the current list in brutalFriendFeedbackMessages.",
-        "The new quotes include coverage across the requested themes (age, games/porn/other drugs, family, health, sports performance), with the same overall ‘brutal friend’ tone as existing messages.",
-        "Calling getMotivationMessage can return any of the expanded quote pool (not just the original set)."
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "text": "Update the frontend fallback brutal message list used by the motivation dialog so it includes the same expanded quote pool (including the 30+ new quotes) to keep the UI consistent when a backend message is missing/empty.",
+      "text": "Fix the Dashboard’s centralized daily session flow initialization so the expected modal popups (Daily Check-In / Repeat Check-In, followed by Data Logged and Brutal Friend) reliably appear when the backend status indicates they are needed, including when `userProfile` loads after `status`.",
       "target": "frontend",
       "source": {
         "messageIds": [
           "msg-5"
         ],
         "quotes": [
-          "add at least 30 of them"
+          "now i do not see any pop ups?"
         ]
       },
       "acceptanceCriteria": [
-        "frontend/src/components/BrutalFriendDialog.tsx brutalMessages includes the new 30+ quotes (or otherwise sources the same expanded set) so that random fallback messages can be any of the added quotes.",
-        "No user-facing text for these messages appears in any language other than English."
+        "If `checkOnboardingAndCheckInStatus().dailyCheckInsToday === 0` and onboarding is complete, the Daily Check-In dialog opens automatically on Dashboard load.",
+        "If `checkOnboardingAndCheckInStatus().dailyCheckInsToday >= 1` and onboarding is complete, the Repeat Check-In dialog opens automatically on Dashboard load.",
+        "If the initial render resolves to ONBOARDING only because `userProfile` has not loaded yet (null/undefined), the flow re-resolves once `userProfile` arrives and the correct modal opens (no reload required).",
+        "The modal queue proceeds in order and opens exactly one modal at a time: (Daily/Repeat) -> Data Logged -> Brutal Friend -> then closes/ends.",
+        "The flow does not get permanently blocked by a one-time guard (e.g., `hasInitialized`) when the inputs (`status`, `userProfile`, `identity`) were incomplete at the time it first ran."
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "Ensure user-facing fallback behavior exists when no session modal is triggered (phase IDLE), so users can still access check-in actions (e.g., a clearly labeled manual button or entry point on the Dashboard) without relying on auto-popups.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-5"
+        ],
+        "quotes": [
+          "now i do not see any pop ups?"
+        ]
+      },
+      "acceptanceCriteria": [
+        "When the session flow resolves to IDLE (no modal queued), the Dashboard presents an obvious action to start a check-in manually with English UI text.",
+        "Using the manual action opens the correct check-in dialog and does not break the existing centralized FIFO modal behavior for the subsequent dialogs."
       ]
     }
   ],
   "constraints": [
-    "Respect single-actor backend architecture: all Motoko logic stays in backend/main.mo.",
-    "Do not edit any frontend files under frontend/src/components/ui or any path listed in frontend.immutablePaths."
+    "Do not edit files under frontend/src/components/ui (shadcn components are read-only).",
+    "Keep modal orchestration centralized via the existing dailySessionFlow state machine (do not reintroduce self-triggering dialogs)."
   ],
   "nonGoals": [
-    "Do not change motivation rate limiting logic (daily click limit) or add new limits.",
-    "Do not change onboarding questions/fields or add new profile fields.",
-    "Do not implement a new personalization/templating system for injecting specific age/family/health values into messages (only expand the quote library as requested).",
-    "Do not create or require a backend migration for this change."
+    "Do not change backend schema or migration for this issue.",
+    "Do not add real-time features (WebSockets/push) or external services."
   ],
   "imageRequirements": {
     "required": [],

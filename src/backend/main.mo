@@ -9,11 +9,12 @@ import Int "mo:core/Int";
 import Principal "mo:core/Principal";
 import Nat "mo:core/Nat";
 import Iter "mo:core/Iter";
+
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
-import Migration "migration";
 
-(with migration = Migration.run)
+// Apply migration from persistent state format
+
 actor {
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
@@ -44,23 +45,37 @@ actor {
     checkInCount : Nat;
   };
 
-  type PersistentUserProfile = {
+  type RepeatCheckInReason = { #reflection; #urge; #bored; #habit; #curiosity };
+
+  type RepeatCheckIn = {
+    timestamp : Nat64;
+    reason : RepeatCheckInReason;
+  };
+
+  public type PersistentUserProfileView = {
     onboardingAnswers : OnboardingAnswers;
     hasCompletedOnboarding : Bool;
     lastCheckInDate : ?Nat64;
     currentDayCheckInStatus : ?Bool;
-    aggregatedEntries : List.List<AggregatedEntry>;
+    aggregatedEntries : [AggregatedEntry];
+    repeatCheckIns : [RepeatCheckIn];
     currentDayTotalDrinks : Nat;
     lastBrutalFriendFeedback : Text;
     motivationButtonClicks : Nat;
     lastMotivationClickDay : Nat64;
   };
 
-  public type UserProfile = {
+  type PersistentUserProfile = {
     onboardingAnswers : OnboardingAnswers;
     hasCompletedOnboarding : Bool;
     lastCheckInDate : ?Nat64;
     currentDayCheckInStatus : ?Bool;
+    aggregatedEntries : List.List<AggregatedEntry>;
+    repeatCheckIns : List.List<RepeatCheckIn>;
+    currentDayTotalDrinks : Nat;
+    lastBrutalFriendFeedback : Text;
+    motivationButtonClicks : Nat;
+    lastMotivationClickDay : Nat64;
   };
 
   module AggregatedEntry {
@@ -192,6 +207,24 @@ actor {
     };
   };
 
+  func getEntriesCountForDay(profile : PersistentUserProfile, day : Nat64) : Nat {
+    let entriesArray = profile.aggregatedEntries.toArray();
+    let dayEntries = entriesArray.filter(
+      func(entry) { entry.date == day }
+    );
+    if (dayEntries.size() == 0) { return 0 };
+    let firstEntry = dayEntries[0];
+    firstEntry.checkInCount;
+  };
+
+  func toViewProfile(profile : PersistentUserProfile) : PersistentUserProfileView {
+    {
+      profile with
+      aggregatedEntries = profile.aggregatedEntries.toArray();
+      repeatCheckIns = profile.repeatCheckIns.toArray();
+    };
+  };
+
   public shared ({ caller }) func checkOnboardingAndCheckInStatus() : async {
     needsOnboarding : Bool;
     needsDailyCheckIn : Bool;
@@ -199,6 +232,7 @@ actor {
     isFirstLoginOfDay : Bool;
     lastLoginWasSober : Int;
     needsFollowUp : Bool;
+    dailyCheckInsToday : Nat;
   } {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can check onboarding and daily check-in status");
@@ -213,6 +247,7 @@ actor {
           isFirstLoginOfDay = true;
           lastLoginWasSober = 0;
           needsFollowUp = false;
+          dailyCheckInsToday = 0;
         };
       };
       case (?profile) {
@@ -239,6 +274,8 @@ actor {
           };
         } else { 0 };
 
+        let dailyCheckInsToday = getEntriesCountForDay(profile, today);
+
         {
           needsOnboarding = not profile.hasCompletedOnboarding;
           needsDailyCheckIn;
@@ -246,50 +283,41 @@ actor {
           isFirstLoginOfDay = needsDailyCheckIn;
           lastLoginWasSober;
           needsFollowUp;
+          dailyCheckInsToday;
         };
       };
     };
   };
 
-  public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
+  public query ({ caller }) func getCallerUserProfile() : async ?PersistentUserProfileView {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can view profiles");
     };
     switch (userProfiles.get(caller)) {
       case (null) { null };
-      case (?persistentProfile) {
-        ?persistentProfile;
-      };
+      case (?persistentProfile) { ?toViewProfile(persistentProfile) };
     };
   };
 
-  public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
+  public query ({ caller }) func getUserProfile(user : Principal) : async ?PersistentUserProfileView {
     if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Can only view your own profile");
     };
     switch (userProfiles.get(user)) {
       case (null) { null };
-      case (?persistentProfile) {
-        ?persistentProfile;
-      };
+      case (?persistentProfile) { ?toViewProfile(persistentProfile) };
     };
   };
 
-  public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
+  public shared ({ caller }) func saveCallerUserProfile(profile : PersistentUserProfileView) : async () {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can save profiles");
     };
 
     let persistentProfile : PersistentUserProfile = {
       profile with
-      aggregatedEntries = List.empty<AggregatedEntry>();
-      currentDayTotalDrinks = switch (profile.currentDayCheckInStatus) {
-        case (null) { 0 };
-        case (_) { 0 };
-      };
-      lastBrutalFriendFeedback = getBrutalFriendMessage(null);
-      motivationButtonClicks = 0;
-      lastMotivationClickDay = 0;
+      aggregatedEntries = List.fromArray(profile.aggregatedEntries);
+      repeatCheckIns = List.fromArray(profile.repeatCheckIns);
     };
     userProfiles.add(caller, persistentProfile);
   };
@@ -334,6 +362,7 @@ actor {
           lastCheckInDate = ?today;
           currentDayCheckInStatus = ?true;
           aggregatedEntries = mergedEntries;
+          repeatCheckIns = List.empty<RepeatCheckIn>();
           currentDayTotalDrinks = entry.drinks;
           lastBrutalFriendFeedback = getBrutalFriendMessage(null);
           motivationButtonClicks = 0;
@@ -372,6 +401,35 @@ actor {
       message = persistentProfile.lastBrutalFriendFeedback;
       date = startOfDay;
       totalDrinks = persistentProfile.currentDayTotalDrinks;
+    };
+  };
+
+  public shared ({ caller }) func submitRepeatCheckIn(reason : RepeatCheckInReason) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can submit repeat check-ins");
+    };
+
+    let now = Int.abs(Time.now() / 1_000_000);
+    let repeatCheckIn : RepeatCheckIn = {
+      timestamp = Nat64.fromNat(now);
+      reason;
+    };
+
+    switch (userProfiles.get(caller)) {
+      case (null) {
+        Runtime.trap("User profile not found - cannot submit repeat check-in");
+      };
+      case (?profile) {
+        let updatedRepeatCheckIns = profile.repeatCheckIns;
+        updatedRepeatCheckIns.add(repeatCheckIn);
+
+        let updatedProfile = {
+          profile with
+          repeatCheckIns = updatedRepeatCheckIns;
+        };
+
+        userProfiles.add(caller, updatedProfile);
+      };
     };
   };
 
@@ -548,6 +606,7 @@ actor {
           lastCheckInDate = ?today;
           currentDayCheckInStatus = ?true;
           aggregatedEntries = List.empty<AggregatedEntry>();
+          repeatCheckIns = List.empty<RepeatCheckIn>();
           currentDayTotalDrinks = 0;
           lastBrutalFriendFeedback = getBrutalFriendMessage(null);
           motivationButtonClicks = 0;

@@ -1,9 +1,21 @@
+import { useState, useEffect } from 'react';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { useQueryClient } from '@tanstack/react-query';
-import { useGetLast14Days, useGetProgressMetrics, useGetCallerUserProfile } from '../hooks/useQueries';
+import {
+  useGetLast14Days,
+  useGetProgressMetrics,
+  useGetCallerUserProfile,
+  useCheckOnboardingAndCheckInStatus,
+  useSubmitCheckIn,
+  useSubmitRepeatCheckIn,
+  useSubmitFollowUpCheckIn,
+} from '../hooks/useQueries';
 import Header from '../components/Header';
 import DrinksChart from '../components/DrinksChart';
 import DailyCheckInDialog from '../components/DailyCheckInDialog';
+import RepeatCheckInDialog from '../components/RepeatCheckInDialog';
+import DataLoggedDialog from '../components/DataLoggedDialog';
+import BrutalFriendDialog from '../components/BrutalFriendDialog';
 import FollowUpCheckInDialog from '../components/FollowUpCheckInDialog';
 import UnifiedHeaderSection from '../components/UnifiedHeaderSection';
 import ChanceOfDrinkingCard from '../components/ChanceOfDrinkingCard';
@@ -11,25 +23,250 @@ import CycleWindowCard from '../components/CycleWindowCard';
 import SoberDaysSection from '../components/SoberDaysSection';
 import StatusIndicatorsSection from '../components/StatusIndicatorsSection';
 import { SiX, SiFacebook, SiInstagram } from 'react-icons/si';
-import { Heart } from 'lucide-react';
+import { Heart, Plus } from 'lucide-react';
 import { parseSobrietyDurationToDays } from '../utils/sobrietyDuration';
+import { Mood, RepeatCheckInReason } from '../backend';
+import {
+  SessionPhase,
+  ModalType,
+  SessionFlowState,
+  resolveSessionPhase,
+  createInitialFlowState,
+  startSessionFlow,
+  advanceToNextModal,
+  setBrutalFriendMessage,
+  setDataLoggedMessage,
+  endSessionFlow,
+} from '../session/dailySessionFlow';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+
+// Convert onboarding answer to numeric average drinks per week
+function getAverageDrinksPerWeek(drinksPerWeek: string): number {
+  switch (drinksPerWeek) {
+    case 'Less than 5':
+      return 3;
+    case '5–10':
+      return 7;
+    case 'More than 10':
+      return 15;
+    case "I just drink, don't count...":
+      return 20;
+    default:
+      return 0;
+  }
+}
 
 export default function Dashboard() {
   const { identity, clear } = useInternetIdentity();
   const queryClient = useQueryClient();
   const { data: chartData = [], isLoading: chartLoading, isFetching: chartFetching } = useGetLast14Days();
   const { data: metrics } = useGetProgressMetrics();
-  const { data: userProfile } = useGetCallerUserProfile();
+  const { data: userProfile, isLoading: profileLoading, isFetched: profileFetched } = useGetCallerUserProfile();
+  const { data: status, isLoading: statusLoading, isFetched: statusFetched } = useCheckOnboardingAndCheckInStatus();
+
+  const submitCheckIn = useSubmitCheckIn();
+  const submitRepeatCheckIn = useSubmitRepeatCheckIn();
+  const submitFollowUpCheckIn = useSubmitFollowUpCheckIn();
+
+  // Centralized session flow state
+  const [flowState, setFlowState] = useState<SessionFlowState>(createInitialFlowState());
+
+  // Parse sobriety duration from user profile, fallback to 30
+  const soberDaysTarget = parseSobrietyDurationToDays(
+    userProfile?.onboardingAnswers?.sobrietyDuration
+  );
 
   const handleLogout = async () => {
     await clear();
     queryClient.clear();
   };
 
-  // Parse sobriety duration from user profile, fallback to 30
-  const soberDaysTarget = parseSobrietyDurationToDays(
-    userProfile?.onboardingAnswers?.sobrietyDuration
-  );
+  // Initialize session flow on load - re-resolve when inputs change
+  useEffect(() => {
+    // Wait for all required data to be available
+    if (!identity || !status || !profileFetched || !statusFetched) {
+      console.log('Waiting for data:', { identity: !!identity, status: !!status, profileFetched, statusFetched });
+      return;
+    }
+
+    // Don't restart if a flow is already active
+    if (flowState.isActive) {
+      console.log('Flow already active, skipping initialization');
+      return;
+    }
+
+    console.log('Resolving session phase with status:', status, 'profile:', userProfile);
+
+    const phase = resolveSessionPhase({
+      needsOnboarding: status.needsOnboarding,
+      hasCompletedOnboarding: userProfile?.hasCompletedOnboarding ?? false,
+      dailyCheckInsToday: Number(status.dailyCheckInsToday),
+    });
+
+    console.log('Resolved session phase:', phase);
+
+    // Only start flow for FIRST_CHECKIN or REPEAT_CHECKIN
+    // ONBOARDING is handled by OnboardingFlow component in App.tsx
+    if (phase === SessionPhase.FIRST_CHECKIN || phase === SessionPhase.REPEAT_CHECKIN) {
+      const newFlowState = startSessionFlow(phase);
+      console.log('Starting session flow:', newFlowState);
+      
+      // Delay modal opening slightly to avoid flash
+      setTimeout(() => {
+        setFlowState(newFlowState);
+      }, 300);
+    }
+  }, [identity, status, userProfile, profileFetched, statusFetched, flowState.isActive]);
+
+  // Manual check-in trigger
+  const handleManualCheckIn = () => {
+    if (!status || !profileFetched) return;
+
+    const phase = resolveSessionPhase({
+      needsOnboarding: status.needsOnboarding,
+      hasCompletedOnboarding: userProfile?.hasCompletedOnboarding ?? false,
+      dailyCheckInsToday: Number(status.dailyCheckInsToday),
+    });
+
+    // Start the appropriate flow
+    if (phase === SessionPhase.FIRST_CHECKIN || phase === SessionPhase.REPEAT_CHECKIN) {
+      const newFlowState = startSessionFlow(phase);
+      setFlowState(newFlowState);
+    }
+  };
+
+  // Daily Check-In handlers
+  const handleDailyCheckInSubmit = async (data: { sober: boolean; drinks: number; mood: Mood }) => {
+    try {
+      const result = await submitCheckIn.mutateAsync({
+        date: BigInt(Date.now()),
+        sober: data.sober,
+        drinks: BigInt(data.drinks),
+        mood: data.mood,
+      });
+
+      // Generate feedback message
+      let feedbackMsg = '';
+      if (data.sober) {
+        const messages = [
+          'Not bad. Keep it up.',
+          "Another day. Don't get cocky.",
+          'Good. Now do it again tomorrow.',
+          'Solid. But streaks can break.',
+          'Nice. Stay sharp.',
+        ];
+        feedbackMsg = messages[Math.floor(Math.random() * messages.length)];
+      } else {
+        // Get average drinks per week from onboarding answers
+        if (userProfile?.onboardingAnswers?.drinksPerWeek) {
+          const avgPerWeek = getAverageDrinksPerWeek(userProfile.onboardingAnswers.drinksPerWeek);
+          const avgPerDay = avgPerWeek / 7;
+
+          if (data.drinks < avgPerDay) {
+            const messages = [
+              'Less than usual. Progress is progress.',
+              "Below average. That's something.",
+              'Fewer drinks. Small wins count.',
+              'Reducing. Keep that trend going.',
+            ];
+            feedbackMsg = messages[Math.floor(Math.random() * messages.length)];
+          } else {
+            const messages = [
+              'Honesty noted. Try harder tomorrow.',
+              "At least you're tracking it.",
+              'Not great. But you showed up.',
+              "Tomorrow's a new chance. Use it.",
+            ];
+            feedbackMsg = messages[Math.floor(Math.random() * messages.length)];
+          }
+        } else {
+          const messages = [
+            'Honesty noted. Try harder tomorrow.',
+            "At least you're tracking it.",
+            'Not great. But you showed up.',
+            "Tomorrow's a new chance. Use it.",
+            'One day at a time. Keep going.',
+          ];
+          feedbackMsg = messages[Math.floor(Math.random() * messages.length)];
+        }
+      }
+
+      // Update flow state with messages and advance
+      let updatedState = setDataLoggedMessage(flowState, feedbackMsg);
+      updatedState = setBrutalFriendMessage(updatedState, result.message);
+      updatedState = advanceToNextModal(updatedState);
+      setFlowState(updatedState);
+    } catch (error) {
+      toast.error('Submission failed. Try again.');
+      console.error(error);
+    }
+  };
+
+  // Repeat Check-In handlers
+  const handleRepeatCheckInSubmit = async (reason: RepeatCheckInReason) => {
+    try {
+      const feedbackMessage = await submitRepeatCheckIn.mutateAsync(reason);
+
+      const messages = [
+        'Noted. Keep tracking.',
+        'Logged. Stay aware.',
+        'Recorded. One step at a time.',
+        'Updated. Keep going.',
+      ];
+      const feedbackMsg = messages[Math.floor(Math.random() * messages.length)];
+
+      // Update flow state with messages and advance
+      let updatedState = setDataLoggedMessage(flowState, feedbackMsg);
+      updatedState = setBrutalFriendMessage(updatedState, feedbackMessage);
+      updatedState = advanceToNextModal(updatedState);
+      setFlowState(updatedState);
+    } catch (error) {
+      toast.error('Submission failed. Try again.');
+      console.error(error);
+    }
+  };
+
+  // Follow-Up Check-In handlers (outside main flow)
+  const [showFollowUp, setShowFollowUp] = useState(false);
+
+  const handleFollowUpRemainedSober = () => {
+    toast.success('Good. Staying consistent.');
+    setShowFollowUp(false);
+  };
+
+  const handleFollowUpHadMoreDrinks = async (drinks: number) => {
+    try {
+      await submitFollowUpCheckIn.mutateAsync(BigInt(drinks));
+      toast.success("Added to today's total. At least you're honest.");
+      setShowFollowUp(false);
+    } catch (error) {
+      toast.error('Submission failed. Try again.');
+      console.error(error);
+    }
+  };
+
+  // Modal close handlers
+  const handleModalClose = () => {
+    // Advance to next modal in queue
+    const nextState = advanceToNextModal(flowState);
+    setFlowState(nextState);
+  };
+
+  const handleDataLoggedClose = () => {
+    // Advance to next modal (Brutal Friend)
+    const nextState = advanceToNextModal(flowState);
+    setFlowState(nextState);
+  };
+
+  const handleBrutalFriendClose = () => {
+    // End session flow
+    const nextState = endSessionFlow(flowState);
+    setFlowState(nextState);
+  };
+
+  // Determine if manual check-in button should be shown
+  const showManualCheckIn = !flowState.isActive && profileFetched && statusFetched && !profileLoading && !statusLoading;
 
   // Always render a valid UI, even if identity is temporarily unavailable
   if (!identity) {
@@ -46,14 +283,59 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Header onLogout={handleLogout} />
-      
-      {/* Daily Check-in Dialog */}
-      <DailyCheckInDialog />
-      
-      {/* Follow-up Check-in Dialog */}
-      <FollowUpCheckInDialog />
+
+      {/* Centralized Session Flow Modals */}
+      <DailyCheckInDialog
+        open={flowState.currentModal === ModalType.DAILY_CHECKIN}
+        onClose={handleModalClose}
+        onSubmit={handleDailyCheckInSubmit}
+        isSubmitting={submitCheckIn.isPending}
+      />
+
+      <RepeatCheckInDialog
+        open={flowState.currentModal === ModalType.REPEAT_CHECKIN}
+        onClose={handleModalClose}
+        onSubmit={handleRepeatCheckInSubmit}
+        isSubmitting={submitRepeatCheckIn.isPending}
+      />
+
+      <DataLoggedDialog
+        open={flowState.currentModal === ModalType.DATA_LOGGED}
+        onClose={handleDataLoggedClose}
+        message={flowState.dataLoggedMessage}
+        variant={flowState.phase === SessionPhase.FIRST_CHECKIN ? 'primary' : 'secondary'}
+      />
+
+      <BrutalFriendDialog
+        open={flowState.currentModal === ModalType.BRUTAL_FRIEND}
+        onClose={handleBrutalFriendClose}
+        message={flowState.brutalFriendMessage}
+      />
+
+      {/* Follow-up Check-in Dialog (outside main flow, not currently triggered) */}
+      <FollowUpCheckInDialog
+        open={showFollowUp}
+        onClose={() => setShowFollowUp(false)}
+        onRemainedSober={handleFollowUpRemainedSober}
+        onHadMoreDrinks={handleFollowUpHadMoreDrinks}
+        isSubmitting={submitFollowUpCheckIn.isPending}
+      />
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 flex-1 max-w-7xl">
+        {/* Manual Check-In Button */}
+        {showManualCheckIn && (
+          <div className="mb-4 sm:mb-6">
+            <Button
+              onClick={handleManualCheckIn}
+              size="lg"
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wider shadow-neon-sm"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Start Check-In
+            </Button>
+          </div>
+        )}
+
         {/* Redesigned Dashboard Layout */}
         <div className="space-y-3 sm:space-y-4 lg:space-y-6">
           {/* 1. Unified Header Section - Brutal Friend Feedback + Motivation Button */}
@@ -82,7 +364,7 @@ export default function Dashboard() {
           <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
             {/* Copyright */}
             <div className="text-xs sm:text-sm text-muted-foreground font-mono text-center sm:text-left">
-              © 2025. Built with <Heart className="inline w-3 h-3 sm:w-4 sm:h-4 text-primary" /> using{' '}
+              © 2026. Built with <Heart className="inline w-3 h-3 sm:w-4 sm:h-4 text-primary" /> using{' '}
               <a
                 href="https://caffeine.ai"
                 target="_blank"

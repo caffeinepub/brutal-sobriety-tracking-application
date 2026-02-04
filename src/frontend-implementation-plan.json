@@ -1,21 +1,43 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Expand Brutal Friend frontend fallback quote pool",
+  "title": "Restore reliable Dashboard daily session modal flow and add manual check-in fallback",
   "requirements": [
     {
-      "id": "REQ-2",
-      "summary": "Expand the BrutalFriendDialog frontend fallback brutalMessages list to include the same 30+ new brutal-motivational quotes so the UI stays consistent when the backend message is missing/empty.",
+      "id": "REQ-1",
+      "summary": "Make the Dashboard’s centralized daily session flow initialization resilient to async loading order so required modals reliably auto-open and the queue advances correctly.",
       "acceptanceCriteria": [
-        "frontend/src/components/BrutalFriendDialog.tsx brutalMessages includes 30+ additional unique quotes (English-only) so fallback messages can be any of the added quotes.",
-        "The added quotes explicitly reference the requested themes: age (age range), other drugs/habits including games and porn, family, health, and sports performance.",
-        "No user-facing text for these messages appears in any language other than English."
+        "If `checkOnboardingAndCheckInStatus().dailyCheckInsToday === 0` and onboarding is complete, the Daily Check-In dialog opens automatically on Dashboard load.",
+        "If `checkOnboardingAndCheckInStatus().dailyCheckInsToday >= 1` and onboarding is complete, the Repeat Check-In dialog opens automatically on Dashboard load.",
+        "If the initial render resolves to ONBOARDING only because `userProfile` has not loaded yet (null/undefined), the flow re-resolves once `userProfile` arrives and the correct modal opens (no reload required).",
+        "The modal queue proceeds in order and opens exactly one modal at a time: (Daily/Repeat) -> Data Logged -> Brutal Friend -> then closes/ends.",
+        "The flow does not get permanently blocked by a one-time guard (e.g., `hasInitialized`) when the inputs (`status`, `userProfile`, `identity`) were incomplete at the time it first ran."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/components/BrutalFriendDialog.tsx",
+          "path": "frontend/src/pages/Dashboard.tsx",
           "operation": "modify",
-          "description": "Append 30+ new unique brutal-friend motivational quotes (English-only) to the local brutalMessages fallback pool, ensuring explicit coverage across age/age-range, other drugs & habits (including games and porn), family, health, and sports performance, while keeping the existing cheeky/brutally-friendly tone. Keep the existing fallback selection logic intact (only used when backend message is missing/empty)."
+          "description": "Refactor the session-flow initialization effect to re-resolve when required inputs change (including late `userProfile` arrival) and to avoid a one-time guard that can permanently block starting the flow. Ensure the flow starts only when onboarding is complete and the resolved phase is FIRST_CHECKIN or REPEAT_CHECKIN, and ensure no double-start occurs while a flow is active."
+        },
+        {
+          "path": "frontend/src/session/dailySessionFlow.ts",
+          "operation": "modify",
+          "description": "Add small, deterministic helper(s) to support robust flow start decisions from the Dashboard (e.g., deriving readiness / preventing duplicate starts based on state), without moving orchestration into dialogs and while keeping the FIFO modal-queue semantics unchanged."
+        }
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "summary": "Add an obvious manual check-in entry point on the Dashboard for cases where the session flow is IDLE and no auto-popup appears.",
+      "acceptanceCriteria": [
+        "When the session flow resolves to IDLE (no modal queued), the Dashboard presents an obvious action to start a check-in manually with English UI text.",
+        "Using the manual action opens the correct check-in dialog and does not break the existing centralized FIFO modal behavior for the subsequent dialogs."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/Dashboard.tsx",
+          "operation": "modify",
+          "description": "Add a clearly labeled manual check-in UI control rendered when no session modal is active/queued (IDLE). Wire the control to start the centralized dailySessionFlow by choosing the correct phase (Daily vs Repeat) from the latest available status/profile inputs, so the subsequent modals still follow the same FIFO order."
         }
       ]
     }

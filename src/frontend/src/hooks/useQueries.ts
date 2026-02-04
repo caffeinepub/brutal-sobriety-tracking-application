@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
-import type { UserProfile, CheckInEntry, AggregatedEntry } from '../backend';
+import type { PersistentUserProfileView, CheckInEntry, AggregatedEntry, RepeatCheckInReason } from '../backend';
 
 const RETRY_CONFIG = {
   retry: 3,
@@ -18,6 +18,7 @@ export function useCheckOnboardingAndCheckInStatus() {
     isFirstLoginOfDay: boolean;
     lastLoginWasSober: bigint;
     needsFollowUp: boolean;
+    dailyCheckInsToday: bigint;
   }>({
     queryKey: ['onboardingCheckInStatus'],
     queryFn: async () => {
@@ -43,7 +44,7 @@ export function useGetCallerUserProfile() {
   const { actor, isFetching: actorFetching } = useActor();
   const actorInitialized = !!actor && !actorFetching;
 
-  const query = useQuery<UserProfile | null>({
+  const query = useQuery<PersistentUserProfileView | null>({
     queryKey: ['currentUserProfile'],
     queryFn: async () => {
       if (!actor) throw new Error('Actor not available');
@@ -74,7 +75,7 @@ export function useSaveCallerUserProfile() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (profile: UserProfile) => {
+    mutationFn: async (profile: PersistentUserProfileView) => {
       if (!actor) {
         throw new Error('Backend connection not ready. Please wait and try again.');
       }
@@ -139,6 +140,33 @@ export function useSubmitCheckIn() {
       queryClient.invalidateQueries({ queryKey: ['moodTrend'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['onboardingCheckInStatus'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['latestBrutalFriendFeedback'], refetchType: 'active' });
+    },
+  });
+}
+
+export function useSubmitRepeatCheckIn() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (reason: RepeatCheckInReason) => {
+      if (!actor) {
+        throw new Error('Backend connection not ready. Please wait and try again.');
+      }
+      
+      console.log('Submitting repeat check-in...', reason);
+      await actor.submitRepeatCheckIn(reason);
+      console.log('Repeat check-in submitted successfully');
+      
+      // Fetch the latest brutal friend feedback after submission
+      const feedback = await actor.getLatestBrutalFriendFeedback();
+      return feedback;
+    },
+    onSuccess: () => {
+      console.log('Repeat check-in successful, invalidating queries...');
+      queryClient.invalidateQueries({ queryKey: ['onboardingCheckInStatus'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['latestBrutalFriendFeedback'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'], refetchType: 'active' });
     },
   });
 }
