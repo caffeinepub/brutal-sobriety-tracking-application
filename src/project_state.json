@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 10,
+  "projectStateVersion": 6,
   "summary": "BRUTAL is a React (TypeScript) + Motoko (Internet Computer) sobriety/alcohol-reduction tracking app with a neon/brutalist UI. Users authenticate via Internet Identity, complete a multi-step onboarding questionnaire (including browser-detected time zone), then log daily check-ins capturing sober/drank status, drink count, and mood. The Motoko canister maintains per-user profiles, aggregates check-ins into per-day summaries, computes progress metrics (sober days, drunk days, streak, total check-ins) and mood trend, stores and serves “brutal friend” feedback messages, and provides a rate-limited motivation message endpoint. The frontend uses TanStack React Query for typed queries/mutations with retries and cache invalidation, and orchestrates daily modal popups through a deterministic session-flow state machine (auto-starting only the first daily check-in, while repeat check-ins require an explicit manual trigger).",
   "existing_features": [
     {
@@ -267,8 +267,8 @@
       "version": 1
     },
     {
-      "id": "feature-update-the-manual-dashboard-check-in-cta-button-label-so-it-displays-exactly-check-in-instead-of-start-check-in",
-      "title": "Update the manual dashboard check-in CTA button label so it displays exactly “CHECK IN” instead of “START CHECK IN”.",
+      "id": "feature-remove-the-14-day-drinks-per-day-graph-from-the-dashboard-ui-so-the-bar-chart-is-no-longer-rendered-on-the-dashboard-page",
+      "title": "Remove the 14-day drinks-per-day graph from the dashboard UI so the bar chart is no longer rendered on the Dashboard page.",
       "reqIds": [
         "REQ-5"
       ],
@@ -278,19 +278,7 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Change dashboard check-in CTA label from “START CHECK IN” to “CHECK IN”.",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-2",
-      "summary": "Remove the number-of-drinks-per-day graph from the dashboard UI.",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-3",
-      "summary": "Fix daily popup flow so repeat-login “Back so soon” only triggers on 2nd+ login of the day (no loops), and make it only ask “still sober?” then drink count if not.",
+      "summary": "Remove the 14-day drinks-per-day graph from the dashboard UI",
       "reqIds": [],
       "status": "pending"
     }
@@ -304,8 +292,8 @@
     "A fixed 6-hour offset day-normalization function is implemented both in backend and frontend for day bucketing and UI labels.",
     "Backend exposes typed endpoints for onboarding/check-in status, profile CRUD, check-in submission, metrics, mood trend, feedback, and motivation messages.",
     "UI is built with Tailwind + shadcn/Radix-style primitives (Dialog/Card/Button/Input), with centralized OKLCH theme tokens and neon/brutalist utility styles.",
-    "Global error handling uses a top-level React error boundary and toast notifications (sonner) for async failures.",
-    "Brutal Friend + motivation copy is now driven by a JSON feedback matrix (e.g., frontend/public/feedbackMatrix.json) with tag-based selection/fallback logic rather than hardcoded strings."
+    "Numeric candid values are represented as bigint in the frontend and converted to number only for display/derived calculations.",
+    "Global error handling uses a top-level React error boundary and toast notifications (sonner) for async failures."
   ],
   "known_issues": [
     "useActor returns an anonymous actor when logged out; status/profile queries are enabled when the anonymous actor is ready, causing canister calls to trap with Unauthorized and generating noisy errors before login.",
@@ -315,10 +303,11 @@
     "Backend currentDayTotalDrinks logic in submitCheckIn is error-prone (fold behavior can reset totals) and submitFollowUpCheckIn does not update currentDayTotalDrinks, leading to inconsistent drink totals.",
     "Backend status exposes needsFollowUp but the Dashboard never sets showFollowUp based on that status, so the follow-up dialog is not automatically triggered.",
     "getProgressMetrics returns last14Days as the full entries array (not limited to 14 days) and streak calculation depends on entry ordering without an explicit sort.",
-    "On identity changes, useActor invalidates and refetches essentially all non-actor queries, which may cause refetch bursts and unnecessary backend load.",
-    "Repeat-login (\"Back so soon\") popup can incorrectly trigger immediately after the first daily check-in and/or enter a loop; follow-up question set needs to be constrained to \"still sober?\" and optional drink count."
+    "Time zone is captured during onboarding and can be queried, but day bucketing uses a fixed offset and does not apply the user’s actual time zone/DST.",
+    "CycleWindowCard uses a hardcoded 2026 full-moon table (and appears incomplete) while applying the current year, producing incorrect results.",
+    "On identity changes, useActor invalidates and refetches essentially all non-actor queries, which may cause refetch bursts and unnecessary backend load."
   ],
-  "isFixRequest": true,
+  "isFixRequest": false,
   "gameProjectType": "none",
   "projectName": "BRUTAL - Sobriety Tracking",
   "clarification_mode": "instant",

@@ -1,33 +1,33 @@
 {
   "kind": "build_request",
-  "title": "Change dashboard check-in button label to “CHECK IN”",
+  "title": "Remove drinks-per-day chart from Dashboard",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-5",
-      "text": "Update the manual dashboard check-in CTA button label so it displays exactly “CHECK IN” instead of “START CHECK IN”.",
+      "text": "Remove the 14-day drinks-per-day graph from the dashboard UI so the bar chart is no longer rendered on the Dashboard page.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-5"
         ],
         "quotes": [
-          "yes, on the button where it says START CHECK IN, make only say CHECK IN"
+          "ok, now we need to remove the graph showing number-of-drinks-per-day from the dashboard"
         ]
       },
       "acceptanceCriteria": [
-        "On the Dashboard page, the manual check-in button text reads exactly “CHECK IN”.",
-        "The button no longer contains the words “START” or “START CHECK IN” anywhere in its visible label."
+        "Dashboard no longer renders the <DrinksChart /> section (the \"14-Day History\" card is not visible).",
+        "Dashboard still loads and renders the remaining sections (UnifiedHeaderSection, ChanceOfDrinkingCard, CycleWindowCard, SoberDaysSection, StatusIndicatorsSection) without layout issues."
       ]
     }
   ],
   "constraints": [
-    "Do not modify any files under frontend/src/components/ui (compose them as-is).",
-    "Do not edit files listed in frontend.immutablePaths."
+    "Do not modify files under frontend/src/components/ui (read-only).",
+    "Keep the backend unchanged; remove only the dashboard graph UI."
   ],
   "nonGoals": [
-    "Do not change the check-in flow logic, modal behavior, or backend endpoints.",
-    "Do not change button styling, layout, or iconography beyond the label text."
+    "Do not delete or refactor backend endpoints that provide 14-day history data.",
+    "Do not change other dashboard widgets or the daily check-in flow behavior."
   ],
   "imageRequirements": {
     "required": [],

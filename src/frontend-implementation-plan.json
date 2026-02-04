@@ -1,20 +1,20 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Update Dashboard manual check-in button label",
+  "title": "Remove drinks-per-day chart from Dashboard",
   "requirements": [
     {
       "id": "REQ-5",
-      "summary": "Change the Dashboard manual check-in CTA button label to display exactly “CHECK IN”.",
+      "summary": "Stop rendering the 14-day drinks-per-day bar chart on the Dashboard page.",
       "acceptanceCriteria": [
-        "On the Dashboard page, the manual check-in button text reads exactly “CHECK IN”.",
-        "The button no longer contains the words “START” or “START CHECK IN” anywhere in its visible label."
+        "Dashboard no longer renders the <DrinksChart /> section (the \"14-Day History\" card is not visible).",
+        "Dashboard still loads and renders the remaining sections (UnifiedHeaderSection, ChanceOfDrinkingCard, CycleWindowCard, SoberDaysSection, StatusIndicatorsSection) without layout issues."
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/Dashboard.tsx",
           "operation": "modify",
-          "description": "Update the manual check-in <Button> visible label text from \"Start Check-In\" to exactly \"CHECK IN\" without changing styling, layout, icons, or check-in flow logic."
+          "description": "Remove the DrinksChart import and remove the JSX block that renders the \"14-Day History\" chart card (<DrinksChart ... />) so the bar chart is no longer displayed on the Dashboard, while keeping other dashboard sections and data fetching needed by StatusIndicatorsSection intact."
         }
       ]
     }

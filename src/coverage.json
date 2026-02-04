@@ -1,7 +1,7 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-04T13:32:16.556Z",
+  "generatedAt": "2026-02-04T13:24:52.103Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
@@ -12,7 +12,7 @@
     "items": [
       {
         "id": "REQ-5",
-        "summary": "Update the manual dashboard check-in CTA button label so it displays exactly “CHECK IN” instead of “START CHECK IN”.",
+        "summary": "Remove the 14-day drinks-per-day graph from the dashboard UI so the bar chart is no longer rendered on the Dashboard page.",
         "status": "implemented",
         "plannedFiles": [
           "frontend/src/pages/Dashboard.tsx"

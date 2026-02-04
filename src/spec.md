@@ -1,10 +1,10 @@
 # Specification
 
 ## Summary
-**Goal:** Update the Dashboard manual check-in CTA button label to display exactly “CHECK IN”.
+**Goal:** Remove the 14-day drinks-per-day bar chart from the Dashboard UI.
 
 **Planned changes:**
-- Change the Dashboard page manual check-in button text from “START CHECK IN” to “CHECK IN”.
-- Ensure the visible label contains no instances of “START” or “START CHECK IN”.
+- Remove the Dashboard rendering of the `<DrinksChart />` section so the “14-Day History” card is no longer shown.
+- Ensure the remaining Dashboard sections still render correctly without layout issues (UnifiedHeaderSection, ChanceOfDrinkingCard, CycleWindowCard, SoberDaysSection, StatusIndicatorsSection).
 
-**User-visible outcome:** On the Dashboard page, the manual check-in button reads “CHECK IN”.
+**User-visible outcome:** The Dashboard no longer displays the drinks-per-day history chart, while all other Dashboard widgets remain visible and functional.
