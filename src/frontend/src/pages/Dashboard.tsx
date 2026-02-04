@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -7,11 +7,9 @@ import {
   useGetCallerUserProfile,
   useCheckOnboardingAndCheckInStatus,
   useSubmitCheckIn,
-  useSubmitRepeatCheckIn,
   useSubmitFollowUpCheckIn,
 } from '../hooks/useQueries';
 import Header from '../components/Header';
-import DrinksChart from '../components/DrinksChart';
 import DailyCheckInDialog from '../components/DailyCheckInDialog';
 import RepeatCheckInDialog from '../components/RepeatCheckInDialog';
 import DataLoggedDialog from '../components/DataLoggedDialog';
@@ -25,7 +23,7 @@ import StatusIndicatorsSection from '../components/StatusIndicatorsSection';
 import { SiX, SiFacebook, SiInstagram } from 'react-icons/si';
 import { Heart, Plus } from 'lucide-react';
 import { parseSobrietyDurationToDays } from '../utils/sobrietyDuration';
-import { Mood, RepeatCheckInReason } from '../backend';
+import { Mood } from '../backend';
 import {
   SessionPhase,
   ModalType,
@@ -60,17 +58,19 @@ function getAverageDrinksPerWeek(drinksPerWeek: string): number {
 export default function Dashboard() {
   const { identity, clear } = useInternetIdentity();
   const queryClient = useQueryClient();
-  const { data: chartData = [], isLoading: chartLoading, isFetching: chartFetching } = useGetLast14Days();
+  const { data: chartData = [] } = useGetLast14Days();
   const { data: metrics } = useGetProgressMetrics();
   const { data: userProfile, isLoading: profileLoading, isFetched: profileFetched } = useGetCallerUserProfile();
   const { data: status, isLoading: statusLoading, isFetched: statusFetched } = useCheckOnboardingAndCheckInStatus();
 
   const submitCheckIn = useSubmitCheckIn();
-  const submitRepeatCheckIn = useSubmitRepeatCheckIn();
   const submitFollowUpCheckIn = useSubmitFollowUpCheckIn();
 
   // Centralized session flow state
   const [flowState, setFlowState] = useState<SessionFlowState>(createInitialFlowState());
+  
+  // Track if we've already auto-started a flow this session to prevent loops
+  const hasAutoStartedRef = useRef(false);
 
   // Parse sobriety duration from user profile, fallback to 30
   const soberDaysTarget = parseSobrietyDurationToDays(
@@ -82,7 +82,7 @@ export default function Dashboard() {
     queryClient.clear();
   };
 
-  // Initialize session flow on load - re-resolve when inputs change
+  // Initialize session flow on load - only auto-start FIRST_CHECKIN
   useEffect(() => {
     // Wait for all required data to be available
     if (!identity || !status || !profileFetched || !statusFetched) {
@@ -96,6 +96,12 @@ export default function Dashboard() {
       return;
     }
 
+    // Don't auto-start if we've already done so this session
+    if (hasAutoStartedRef.current) {
+      console.log('Already auto-started a flow this session, skipping');
+      return;
+    }
+
     console.log('Resolving session phase with status:', status, 'profile:', userProfile);
 
     const phase = resolveSessionPhase({
@@ -106,11 +112,14 @@ export default function Dashboard() {
 
     console.log('Resolved session phase:', phase);
 
-    // Only start flow for FIRST_CHECKIN or REPEAT_CHECKIN
-    // ONBOARDING is handled by OnboardingFlow component in App.tsx
-    if (phase === SessionPhase.FIRST_CHECKIN || phase === SessionPhase.REPEAT_CHECKIN) {
+    // Only auto-start FIRST_CHECKIN flow
+    // REPEAT_CHECKIN must be triggered manually by the user
+    if (phase === SessionPhase.FIRST_CHECKIN) {
       const newFlowState = startSessionFlow(phase);
       console.log('Starting session flow:', newFlowState);
+      
+      // Mark that we've auto-started
+      hasAutoStartedRef.current = true;
       
       // Delay modal opening slightly to avoid flash
       setTimeout(() => {
@@ -129,7 +138,7 @@ export default function Dashboard() {
       dailyCheckInsToday: Number(status.dailyCheckInsToday),
     });
 
-    // Start the appropriate flow
+    // Start the appropriate flow (FIRST_CHECKIN or REPEAT_CHECKIN)
     if (phase === SessionPhase.FIRST_CHECKIN || phase === SessionPhase.REPEAT_CHECKIN) {
       const newFlowState = startSessionFlow(phase);
       setFlowState(newFlowState);
@@ -203,10 +212,17 @@ export default function Dashboard() {
     }
   };
 
-  // Repeat Check-In handlers
-  const handleRepeatCheckInSubmit = async (reason: RepeatCheckInReason) => {
+  // Repeat Check-In handlers - now handles sobriety follow-up
+  const handleRepeatCheckInStillSober = () => {
+    // User is still sober, just close the modal
+    toast.success('Good. Staying consistent.');
+    const nextState = endSessionFlow(flowState);
+    setFlowState(nextState);
+  };
+
+  const handleRepeatCheckInDrank = async (drinks: number) => {
     try {
-      const feedbackMessage = await submitRepeatCheckIn.mutateAsync(reason);
+      const feedbackMessage = await submitFollowUpCheckIn.mutateAsync(BigInt(drinks));
 
       const messages = [
         'Noted. Keep tracking.',
@@ -295,8 +311,9 @@ export default function Dashboard() {
       <RepeatCheckInDialog
         open={flowState.currentModal === ModalType.REPEAT_CHECKIN}
         onClose={handleModalClose}
-        onSubmit={handleRepeatCheckInSubmit}
-        isSubmitting={submitRepeatCheckIn.isPending}
+        onStillSober={handleRepeatCheckInStillSober}
+        onDrank={handleRepeatCheckInDrank}
+        isSubmitting={submitFollowUpCheckIn.isPending}
       />
 
       <DataLoggedDialog
@@ -331,7 +348,7 @@ export default function Dashboard() {
               className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wider shadow-neon-sm"
             >
               <Plus className="w-5 h-5 mr-2" />
-              Start Check-In
+              CHECK IN
             </Button>
           </div>
         )}
@@ -352,9 +369,6 @@ export default function Dashboard() {
 
           {/* 4. Status Indicators Section - Weekly Average, Yesterday, Today */}
           <StatusIndicatorsSection chartData={chartData} />
-
-          {/* 5. 14-Day Chart at Bottom */}
-          <DrinksChart data={chartData} isLoading={chartLoading} isFetching={chartFetching} />
         </div>
       </main>
 

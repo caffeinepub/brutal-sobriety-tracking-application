@@ -1,53 +1,33 @@
 {
   "kind": "build_request",
-  "title": "Fix daily session popups not appearing on Dashboard",
-  "priority": "high",
+  "title": "Change dashboard check-in button label to “CHECK IN”",
+  "priority": "normal",
   "requirements": [
     {
-      "id": "REQ-1",
-      "text": "Fix the Dashboard’s centralized daily session flow initialization so the expected modal popups (Daily Check-In / Repeat Check-In, followed by Data Logged and Brutal Friend) reliably appear when the backend status indicates they are needed, including when `userProfile` loads after `status`.",
+      "id": "REQ-5",
+      "text": "Update the manual dashboard check-in CTA button label so it displays exactly “CHECK IN” instead of “START CHECK IN”.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-5"
+          "msg-4"
         ],
         "quotes": [
-          "now i do not see any pop ups?"
+          "yes, on the button where it says START CHECK IN, make only say CHECK IN"
         ]
       },
       "acceptanceCriteria": [
-        "If `checkOnboardingAndCheckInStatus().dailyCheckInsToday === 0` and onboarding is complete, the Daily Check-In dialog opens automatically on Dashboard load.",
-        "If `checkOnboardingAndCheckInStatus().dailyCheckInsToday >= 1` and onboarding is complete, the Repeat Check-In dialog opens automatically on Dashboard load.",
-        "If the initial render resolves to ONBOARDING only because `userProfile` has not loaded yet (null/undefined), the flow re-resolves once `userProfile` arrives and the correct modal opens (no reload required).",
-        "The modal queue proceeds in order and opens exactly one modal at a time: (Daily/Repeat) -> Data Logged -> Brutal Friend -> then closes/ends.",
-        "The flow does not get permanently blocked by a one-time guard (e.g., `hasInitialized`) when the inputs (`status`, `userProfile`, `identity`) were incomplete at the time it first ran."
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "text": "Ensure user-facing fallback behavior exists when no session modal is triggered (phase IDLE), so users can still access check-in actions (e.g., a clearly labeled manual button or entry point on the Dashboard) without relying on auto-popups.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-5"
-        ],
-        "quotes": [
-          "now i do not see any pop ups?"
-        ]
-      },
-      "acceptanceCriteria": [
-        "When the session flow resolves to IDLE (no modal queued), the Dashboard presents an obvious action to start a check-in manually with English UI text.",
-        "Using the manual action opens the correct check-in dialog and does not break the existing centralized FIFO modal behavior for the subsequent dialogs."
+        "On the Dashboard page, the manual check-in button text reads exactly “CHECK IN”.",
+        "The button no longer contains the words “START” or “START CHECK IN” anywhere in its visible label."
       ]
     }
   ],
   "constraints": [
-    "Do not edit files under frontend/src/components/ui (shadcn components are read-only).",
-    "Keep modal orchestration centralized via the existing dailySessionFlow state machine (do not reintroduce self-triggering dialogs)."
+    "Do not modify any files under frontend/src/components/ui (compose them as-is).",
+    "Do not edit files listed in frontend.immutablePaths."
   ],
   "nonGoals": [
-    "Do not change backend schema or migration for this issue.",
-    "Do not add real-time features (WebSockets/push) or external services."
+    "Do not change the check-in flow logic, modal behavior, or backend endpoints.",
+    "Do not change button styling, layout, or iconography beyond the label text."
   ],
   "imageRequirements": {
     "required": [],

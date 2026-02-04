@@ -2,73 +2,65 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { RepeatCheckInReason } from '../backend';
-import { RefreshCw, Zap, Coffee, Repeat, Eye } from 'lucide-react';
+import { CheckCircle2, XCircle } from 'lucide-react';
 
 interface RepeatCheckInDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (reason: RepeatCheckInReason) => Promise<void>;
+  onStillSober: () => void;
+  onDrank: (drinks: number) => Promise<void>;
   isSubmitting: boolean;
 }
-
-const REASONS = [
-  {
-    value: RepeatCheckInReason.reflection,
-    label: 'Reflection',
-    description: 'Checking in on my progress',
-    icon: RefreshCw,
-  },
-  {
-    value: RepeatCheckInReason.urge,
-    label: 'Urge',
-    description: 'Feeling tempted to drink',
-    icon: Zap,
-  },
-  {
-    value: RepeatCheckInReason.bored,
-    label: 'Boredom',
-    description: 'Nothing better to do',
-    icon: Coffee,
-  },
-  {
-    value: RepeatCheckInReason.habit,
-    label: 'Habit',
-    description: 'Just checking in as usual',
-    icon: Repeat,
-  },
-  {
-    value: RepeatCheckInReason.curiosity,
-    label: 'Curiosity',
-    description: 'Wondering about my stats',
-    icon: Eye,
-  },
-];
 
 export default function RepeatCheckInDialog({
   open,
   onClose,
-  onSubmit,
+  onStillSober,
+  onDrank,
   isSubmitting,
 }: RepeatCheckInDialogProps) {
-  const [selectedReason, setSelectedReason] = useState<RepeatCheckInReason | null>(null);
+  const [step, setStep] = useState<'question' | 'drinks'>('question');
+  const [drinks, setDrinks] = useState('');
 
-  const handleSubmit = async () => {
-    if (!selectedReason) {
-      toast.error('Pick a reason. No skipping.');
+  const handleYesStillSober = () => {
+    onStillSober();
+    // Reset state
+    setStep('question');
+    setDrinks('');
+  };
+
+  const handleNoDrank = () => {
+    setStep('drinks');
+  };
+
+  const handleSubmitDrinks = async () => {
+    const drinksNum = parseInt(drinks, 10);
+    
+    if (isNaN(drinksNum) || drinksNum < 0) {
+      toast.error('Enter a valid number of drinks (0 or more).');
       return;
     }
 
-    await onSubmit(selectedReason);
-    setSelectedReason(null);
+    await onDrank(drinksNum);
+    
+    // Reset state
+    setStep('question');
+    setDrinks('');
   };
 
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
-      setSelectedReason(null);
+      setStep('question');
+      setDrinks('');
       onClose();
     }
+  };
+
+  const handleBack = () => {
+    setStep('question');
+    setDrinks('');
   };
 
   return (
@@ -76,70 +68,89 @@ export default function RepeatCheckInDialog({
       <DialogContent className="sm:max-w-md bg-popover border-2 border-border z-[100]">
         <DialogHeader>
           <DialogTitle className="text-2xl font-black uppercase tracking-tight neon-glow-pink">
-            WHY ARE YOU BACK SO SOON?
+            BACK SO SOON?
           </DialogTitle>
           <DialogDescription className="text-xs uppercase tracking-wider">
-            You already checked in today. What brings you back?
+            You already checked in today.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <Label className="text-sm font-bold uppercase tracking-wider">Select a reason:</Label>
-          <div className="space-y-2">
-            {REASONS.map((reason) => {
-              const Icon = reason.icon;
-              return (
-                <button
-                  key={reason.value}
-                  type="button"
-                  onClick={() => setSelectedReason(reason.value)}
-                  className={`w-full p-4 border-2 transition-all text-left ${
-                    selectedReason === reason.value
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <Icon className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1">
-                      <div className="text-sm font-bold uppercase tracking-wider">
-                        {reason.label}
-                      </div>
-                      <div className="text-xs text-muted-foreground normal-case font-normal mt-1">
-                        {reason.description}
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {step === 'question' ? (
+          <div className="space-y-6 py-4">
+            <div className="text-center">
+              <p className="text-lg font-bold uppercase tracking-wider mb-6">
+                Are you still sober?
+              </p>
+            </div>
 
-        <div className="flex gap-3">
-          <Button
-            variant="outline"
-            onClick={() => handleOpenChange(false)}
-            className="flex-1 font-bold uppercase tracking-wider border-2"
-            disabled={isSubmitting}
-          >
-            Skip
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting || !selectedReason}
-            className="flex-1 bg-primary hover:bg-primary/90 font-bold uppercase tracking-wider border-2 border-primary"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="mr-2 h-4 w-4 animate-spin rounded-sm border-4 border-white border-t-transparent"></div>
-                SENDING...
-              </>
-            ) : (
-              'SUBMIT'
-            )}
-          </Button>
-        </div>
+            <div className="flex flex-col gap-3">
+              <Button
+                onClick={handleYesStillSober}
+                disabled={isSubmitting}
+                className="w-full bg-primary hover:bg-primary/90 font-bold uppercase tracking-wider border-2 border-primary h-14 text-base"
+              >
+                <CheckCircle2 className="w-5 h-5 mr-2" />
+                Yes, Still Sober
+              </Button>
+              <Button
+                onClick={handleNoDrank}
+                disabled={isSubmitting}
+                variant="outline"
+                className="w-full font-bold uppercase tracking-wider border-2 h-14 text-base"
+              >
+                <XCircle className="w-5 h-5 mr-2" />
+                No, I Drank
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="drinks" className="text-sm font-bold uppercase tracking-wider">
+                How many drinks?
+              </Label>
+              <Input
+                id="drinks"
+                type="number"
+                min="0"
+                value={drinks}
+                onChange={(e) => setDrinks(e.target.value)}
+                placeholder="Enter number of drinks"
+                className="border-2 font-mono text-lg"
+                disabled={isSubmitting}
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the number of drinks you had.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={handleBack}
+                className="flex-1 font-bold uppercase tracking-wider border-2"
+                disabled={isSubmitting}
+              >
+                Back
+              </Button>
+              <Button
+                onClick={handleSubmitDrinks}
+                disabled={isSubmitting || !drinks}
+                className="flex-1 bg-primary hover:bg-primary/90 font-bold uppercase tracking-wider border-2 border-primary"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-sm border-4 border-white border-t-transparent"></div>
+                    SENDING...
+                  </>
+                ) : (
+                  'SUBMIT'
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

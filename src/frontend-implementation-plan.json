@@ -1,43 +1,20 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Restore reliable Dashboard daily session modal flow and add manual check-in fallback",
+  "title": "Update Dashboard manual check-in button label",
   "requirements": [
     {
-      "id": "REQ-1",
-      "summary": "Make the Dashboard’s centralized daily session flow initialization resilient to async loading order so required modals reliably auto-open and the queue advances correctly.",
+      "id": "REQ-5",
+      "summary": "Change the Dashboard manual check-in CTA button label to display exactly “CHECK IN”.",
       "acceptanceCriteria": [
-        "If `checkOnboardingAndCheckInStatus().dailyCheckInsToday === 0` and onboarding is complete, the Daily Check-In dialog opens automatically on Dashboard load.",
-        "If `checkOnboardingAndCheckInStatus().dailyCheckInsToday >= 1` and onboarding is complete, the Repeat Check-In dialog opens automatically on Dashboard load.",
-        "If the initial render resolves to ONBOARDING only because `userProfile` has not loaded yet (null/undefined), the flow re-resolves once `userProfile` arrives and the correct modal opens (no reload required).",
-        "The modal queue proceeds in order and opens exactly one modal at a time: (Daily/Repeat) -> Data Logged -> Brutal Friend -> then closes/ends.",
-        "The flow does not get permanently blocked by a one-time guard (e.g., `hasInitialized`) when the inputs (`status`, `userProfile`, `identity`) were incomplete at the time it first ran."
+        "On the Dashboard page, the manual check-in button text reads exactly “CHECK IN”.",
+        "The button no longer contains the words “START” or “START CHECK IN” anywhere in its visible label."
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/Dashboard.tsx",
           "operation": "modify",
-          "description": "Refactor the session-flow initialization effect to re-resolve when required inputs change (including late `userProfile` arrival) and to avoid a one-time guard that can permanently block starting the flow. Ensure the flow starts only when onboarding is complete and the resolved phase is FIRST_CHECKIN or REPEAT_CHECKIN, and ensure no double-start occurs while a flow is active."
-        },
-        {
-          "path": "frontend/src/session/dailySessionFlow.ts",
-          "operation": "modify",
-          "description": "Add small, deterministic helper(s) to support robust flow start decisions from the Dashboard (e.g., deriving readiness / preventing duplicate starts based on state), without moving orchestration into dialogs and while keeping the FIFO modal-queue semantics unchanged."
-        }
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "summary": "Add an obvious manual check-in entry point on the Dashboard for cases where the session flow is IDLE and no auto-popup appears.",
-      "acceptanceCriteria": [
-        "When the session flow resolves to IDLE (no modal queued), the Dashboard presents an obvious action to start a check-in manually with English UI text.",
-        "Using the manual action opens the correct check-in dialog and does not break the existing centralized FIFO modal behavior for the subsequent dialogs."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/Dashboard.tsx",
-          "operation": "modify",
-          "description": "Add a clearly labeled manual check-in UI control rendered when no session modal is active/queued (IDLE). Wire the control to start the centralized dailySessionFlow by choosing the correct phase (Daily vs Repeat) from the latest available status/profile inputs, so the subsequent modals still follow the same FIFO order."
+          "description": "Update the manual check-in <Button> visible label text from \"Start Check-In\" to exactly \"CHECK IN\" without changing styling, layout, icons, or check-in flow logic."
         }
       ]
     }
