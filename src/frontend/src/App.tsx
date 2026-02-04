@@ -4,28 +4,24 @@ import { useActor } from './hooks/useActor';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import OnboardingFlow from './components/OnboardingFlow';
-import FeedbackMatrixInspector from './pages/FeedbackMatrixInspector';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { WifiOff } from 'lucide-react';
+import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
 
 export default function App() {
   const { identity, isInitializing } = useInternetIdentity();
   const { actor, isFetching: actorFetching } = useActor();
   const [showLogin, setShowLogin] = useState(false);
+  const [statusTimeout, setStatusTimeout] = useState(false);
   const [connectionRetries, setConnectionRetries] = useState(0);
 
   const isAuthenticated = !!identity;
   const actorInitialized = !!actor && !actorFetching;
 
-  // Check for debug route
-  const isDebugInspector = 
-    window.location.hash === '#/debug/feedback-matrix' ||
-    new URLSearchParams(window.location.search).get('debug') === 'feedback-matrix';
-
-  // Status query - fetch immediately when actor is ready
+  // Status query with error handling
   const { 
     data: status, 
     isLoading: statusLoading, 
@@ -51,11 +47,23 @@ export default function App() {
     }
   }, [isInitializing, isAuthenticated]);
 
+  // Status loading timeout: proceed after 3 seconds even if status query hasn't resolved
+  useEffect(() => {
+    if (!isAuthenticated || !statusLoading) return;
+
+    const timeout = setTimeout(() => {
+      setStatusTimeout(true);
+    }, 3000);
+
+    return () => clearTimeout(timeout);
+  }, [isAuthenticated, statusLoading]);
+
   // Handle status fetch errors
   useEffect(() => {
     if (statusError) {
       console.error('Status fetch error:', statusError);
       toast.error('Failed to load status. Please try refreshing.');
+      setStatusTimeout(true);
     }
   }, [statusError]);
 
@@ -70,28 +78,20 @@ export default function App() {
     }
   }, [isAuthenticated, actor, actorFetching, connectionRetries]);
 
-  // Debug route: show inspector without authentication
-  if (isDebugInspector) {
-    return (
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-        <FeedbackMatrixInspector />
-        <Toaster />
-      </ThemeProvider>
-    );
-  }
-
   // Show login page if not authenticated (with fallback timeout)
   if (!isAuthenticated) {
     if (!showLogin && isInitializing) {
       // Brief loading state with timeout fallback
       return (
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-          <div className="min-h-screen bg-background flex items-center justify-center">
-            <div className="text-center">
-              <div className="mb-4 h-12 w-12 animate-spin rounded-sm border-4 border-primary border-t-transparent mx-auto"></div>
-              <p className="text-muted-foreground font-bold uppercase tracking-wider">Loading...</p>
+          <GlobalErrorBoundary>
+            <div className="min-h-screen bg-background flex items-center justify-center">
+              <div className="text-center">
+                <div className="mb-4 h-12 w-12 animate-spin rounded-sm border-4 border-primary border-t-transparent mx-auto"></div>
+                <p className="text-muted-foreground font-bold uppercase tracking-wider">Loading...</p>
+              </div>
             </div>
-          </div>
+          </GlobalErrorBoundary>
           <Toaster />
         </ThemeProvider>
       );
@@ -99,7 +99,9 @@ export default function App() {
 
     return (
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-        <LoginPage />
+        <GlobalErrorBoundary>
+          <LoginPage />
+        </GlobalErrorBoundary>
         <Toaster />
       </ThemeProvider>
     );
@@ -109,17 +111,19 @@ export default function App() {
   if (!actorInitialized) {
     return (
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <div className="text-center">
-            <div className="mb-4 h-12 w-12 animate-spin rounded-sm border-4 border-primary border-t-transparent mx-auto"></div>
-            <p className="text-muted-foreground font-bold uppercase tracking-wider mb-2">
-              Connecting to backend...
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Establishing secure connection
-            </p>
+        <GlobalErrorBoundary>
+          <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="text-center">
+              <div className="mb-4 h-12 w-12 animate-spin rounded-sm border-4 border-primary border-t-transparent mx-auto"></div>
+              <p className="text-muted-foreground font-bold uppercase tracking-wider mb-2">
+                Connecting to backend...
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Establishing secure connection
+              </p>
+            </div>
           </div>
-        </div>
+        </GlobalErrorBoundary>
         <Toaster />
       </ThemeProvider>
     );
@@ -129,60 +133,70 @@ export default function App() {
   if (connectionRetries >= 3 && !actor) {
     return (
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-        <div className="min-h-screen bg-background flex items-center justify-center p-4">
-          <div className="text-center max-w-md">
-            <WifiOff className="w-16 h-16 text-destructive mx-auto mb-4" />
-            <h1 className="text-2xl font-black uppercase tracking-tight text-destructive mb-2">
-              CONNECTION FAILED
-            </h1>
-            <p className="text-muted-foreground text-sm mb-6">
-              Unable to connect to the backend after multiple attempts.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-primary text-primary-foreground font-bold uppercase tracking-wider border-2 border-primary hover:bg-primary/90 transition-colors"
-            >
-              Refresh Page
-            </button>
+        <GlobalErrorBoundary>
+          <div className="min-h-screen bg-background flex items-center justify-center p-4">
+            <div className="text-center max-w-md">
+              <WifiOff className="w-16 h-16 text-destructive mx-auto mb-4" />
+              <h1 className="text-2xl font-black uppercase tracking-tight text-destructive mb-2">
+                CONNECTION FAILED
+              </h1>
+              <p className="text-muted-foreground text-sm mb-6">
+                Unable to connect to the backend after multiple attempts.
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-3 bg-primary text-primary-foreground font-bold uppercase tracking-wider border-2 border-primary hover:bg-primary/90 transition-colors"
+              >
+                Refresh Page
+              </button>
+            </div>
           </div>
-        </div>
+        </GlobalErrorBoundary>
         <Toaster />
       </ThemeProvider>
     );
   }
 
-  // Wait for status to be fetched before deciding flow
-  // This prevents flash of onboarding for returning users
-  if (!statusFetched && statusLoading) {
+  // After actor initialization, check status with timeout fail-safe
+  const shouldShowLoading = !statusFetched && statusLoading && !statusTimeout;
+
+  if (shouldShowLoading) {
     return (
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <div className="text-center">
-            <div className="mb-4 h-12 w-12 animate-spin rounded-sm border-4 border-primary border-t-transparent mx-auto"></div>
-            <p className="text-muted-foreground font-bold uppercase tracking-wider">Loading...</p>
+        <GlobalErrorBoundary>
+          <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="text-center">
+              <div className="mb-4 h-12 w-12 animate-spin rounded-sm border-4 border-primary border-t-transparent mx-auto"></div>
+              <p className="text-muted-foreground font-bold uppercase tracking-wider">Loading...</p>
+            </div>
           </div>
-        </div>
+        </GlobalErrorBoundary>
         <Toaster />
       </ThemeProvider>
     );
   }
 
   // Determine flow based on status
-  const needsOnboarding = status?.needsOnboarding ?? false;
+  // If timeout occurred or error, assume needs onboarding
+  const needsOnboarding = status?.needsOnboarding ?? true;
 
   if (needsOnboarding) {
     return (
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-        <OnboardingFlow />
+        <GlobalErrorBoundary>
+          <OnboardingFlow />
+        </GlobalErrorBoundary>
         <Toaster />
       </ThemeProvider>
     );
   }
 
-  // Show dashboard - check-in dialogs are rendered inside Dashboard component
+  // Show dashboard - check-in dialogs are now only rendered in Dashboard component
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-      <Dashboard />
+      <GlobalErrorBoundary>
+        <Dashboard />
+      </GlobalErrorBoundary>
       <Toaster />
     </ThemeProvider>
   );

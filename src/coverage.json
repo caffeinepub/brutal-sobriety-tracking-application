@@ -1,60 +1,43 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-03T10:42:20.777Z",
+  "generatedAt": "2026-02-04T11:41:32.211Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 3,
-    "implemented": 3,
+    "total": 2,
+    "implemented": 1,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "Add a frontend-only “Feedback Matrix Inspector” view that loads `frontend/public/feedbackMatrix.json` via the existing `loadFeedbackMatrix()` loader and displays, for each unique user-input combination, how many feedback messages exist in the matrix.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/pages/FeedbackMatrixInspector.tsx",
-          "frontend/src/lib/feedbackMatrixLoader.ts"
-        ],
-        "matchedFiles": [
-          "frontend/src/pages/FeedbackMatrixInspector.tsx"
-        ]
+        "summary": "Add at least 30 NEW motivational/brutal-friend quotes (in English) that are cheeky, fun, brutally friendly, and honest, and that explicitly reference: age (age range), other drugs/habits including games and porn, family, health, and sports performance. These quotes must be appended to the existing quote pool used by the backend motivation/feedback message generator.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
       },
       {
         "id": "REQ-2",
-        "summary": "In the Feedback Matrix Inspector, also display a per-entry sentence count for each message (computed on the frontend by splitting the message text into sentences) and a per-group total sentence count.",
+        "summary": "Update the frontend fallback brutal message list used by the motivation dialog so it includes the same expanded quote pool (including the 30+ new quotes) to keep the UI consistent when a backend message is missing/empty.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/pages/FeedbackMatrixInspector.tsx"
+          "frontend/src/components/BrutalFriendDialog.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/pages/FeedbackMatrixInspector.tsx"
-        ]
-      },
-      {
-        "id": "REQ-3",
-        "summary": "Provide a safe way to access the Feedback Matrix Inspector from the app without modifying authentication internals: add a minimal route or conditional rendering entry point (for example, a `#/debug/feedback-matrix` route or a `?debug=feedback-matrix` flag) and ensure it does not appear in normal user flow by default.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/App.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/App.tsx"
+          "frontend/src/components/BrutalFriendDialog.tsx"
         ]
       }
     ]
   },
   "changedFiles": [
+    "backend/main.mo",
+    "backend/migration.mo",
     "build-request.json",
-    "caffeine.lock.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/App.tsx",
-    "frontend/src/hooks/useInternetIdentity.ts",
-    "frontend/src/pages/FeedbackMatrixInspector.tsx",
+    "frontend/src/components/BrutalFriendDialog.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

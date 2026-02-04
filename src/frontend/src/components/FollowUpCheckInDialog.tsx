@@ -6,14 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { Zap } from 'lucide-react';
 import BrutalFriendDialog from './BrutalFriendDialog';
-import { loadFeedbackMatrix, searchFeedbackMatrix } from '../lib/feedbackMatrixLoader';
 
 export default function FollowUpCheckInDialog() {
   const [open, setOpen] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [showBrutalFriend, setShowBrutalFriend] = useState(false);
   const [hadMoreDrinks, setHadMoreDrinks] = useState<boolean | null>(null);
   const [drinks, setDrinks] = useState('');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
   const [brutalFriendMessage, setBrutalFriendMessage] = useState('');
 
   // Session-level guard to prevent duplicate openings
@@ -26,25 +28,15 @@ export default function FollowUpCheckInDialog() {
 
   const isAuthenticated = !!identity;
 
-  // Trigger popup based on backend status - for subsequent logins of the same day
+  // Trigger popup based on backend status
   useEffect(() => {
-    if (!isAuthenticated || !status || showBrutalFriend) return;
+    if (!isAuthenticated || !status || showFeedback || showBrutalFriend) return;
 
     // Session-level guard: prevent duplicate openings
     if (isDialogActiveRef.current || hasTriggeredRef.current) return;
 
-    // Show follow-up popup only if:
-    // 1. needsFollowUp is true (user has completed onboarding)
-    // 2. isFirstLoginOfDay is false (this is NOT the first login of the day)
-    const shouldShowPopup = status.needsFollowUp && !status.isFirstLoginOfDay;
-
-    console.log('Follow-up check logic:', {
-      needsFollowUp: status.needsFollowUp,
-      isFirstLoginOfDay: status.isFirstLoginOfDay,
-      shouldShowPopup,
-    });
-
-    if (shouldShowPopup) {
+    // Show follow-up popup if user needs it
+    if (status.needsFollowUp && !status.isFirstLoginOfDay) {
       // Mark dialog as triggered to prevent duplicate triggers
       hasTriggeredRef.current = true;
       
@@ -58,34 +50,18 @@ export default function FollowUpCheckInDialog() {
 
       return () => clearTimeout(timer);
     }
-  }, [isAuthenticated, status, showBrutalFriend]);
+  }, [isAuthenticated, status, showFeedback, showBrutalFriend]);
 
-  const handleRemainedSober = async () => {
-    // Close follow-up dialog immediately
+  const handleRemainedSober = () => {
+    setFeedbackMessage("Good. Staying consistent.");
     setOpen(false);
-
-    // Generate feedback message for "remained sober"
-    try {
-      // Generate message from feedback matrix
-      console.log('Generating feedback for remained sober...');
-      const matrix = await loadFeedbackMatrix();
-      const userState = {
-        ageRange: 'any',
-        motivation: 'family' as any,
-        baselineTier: 'medium' as any,
-        secondarySubstance: undefined,
-      };
-      const matrixMessage = searchFeedbackMatrix(matrix, userState);
-      setBrutalFriendMessage(matrixMessage);
-
-      // Show BrutalFriendDialog immediately
-      setShowBrutalFriend(true);
-    } catch (error) {
-      console.error('Failed to generate feedback:', error);
-      // Use fallback message
-      setBrutalFriendMessage("Good. Staying consistent.");
-      setShowBrutalFriend(true);
-    }
+    setShowFeedback(true);
+    // No need to show brutal friend for "remained sober" - just close
+    setTimeout(() => {
+      setShowFeedback(false);
+      // Reset dialog active flag
+      isDialogActiveRef.current = false;
+    }, 2000);
   };
 
   const handleHadMoreDrinks = () => {
@@ -99,39 +75,25 @@ export default function FollowUpCheckInDialog() {
       return;
     }
 
-    // Close follow-up dialog immediately
+    const messages = [
+      "Added to today's total. At least you're honest.",
+      "Noted. Tomorrow's another chance.",
+      "Updated. Keep tracking, keep trying.",
+      "Logged. One day at a time.",
+    ];
+    setFeedbackMessage(messages[Math.floor(Math.random() * messages.length)]);
+
     setOpen(false);
+    setShowFeedback(true);
 
-    // Submit follow-up check-in
+    // Submit follow-up check-in and get brutal friend message from backend
     try {
-      const result = await submitFollowUpCheckIn.mutateAsync({
-        drinks: BigInt(drinkCount),
-      });
-      
-      // Use backend message if available, otherwise generate from matrix
-      if (result.message && result.message.trim() !== '') {
-        setBrutalFriendMessage(result.message);
-      } else {
-        // Fallback: generate message from feedback matrix
-        console.log('Backend message empty, generating from matrix...');
-        const matrix = await loadFeedbackMatrix();
-        const userState = {
-          ageRange: 'any',
-          motivation: 'family' as any,
-          baselineTier: 'medium' as any,
-          secondarySubstance: undefined,
-        };
-        const matrixMessage = searchFeedbackMatrix(matrix, userState);
-        setBrutalFriendMessage(matrixMessage);
-      }
-
-      // Show BrutalFriendDialog immediately after submission
-      setShowBrutalFriend(true);
+      const returnedMessage = await submitFollowUpCheckIn.mutateAsync(BigInt(drinkCount));
+      setBrutalFriendMessage(returnedMessage);
     } catch (error) {
       toast.error('Submission failed. Try again.');
       console.error(error);
-      // Reset dialog active flag on error
-      isDialogActiveRef.current = false;
+      setShowFeedback(false);
     }
 
     setHadMoreDrinks(null);
@@ -145,6 +107,17 @@ export default function FollowUpCheckInDialog() {
       isDialogActiveRef.current = false;
       setHadMoreDrinks(null);
       setDrinks('');
+    }
+  };
+
+  const handleFeedbackClose = () => {
+    setShowFeedback(false);
+    // Only show Brutal Friend dialog if there's a brutal friend message
+    if (brutalFriendMessage) {
+      setShowBrutalFriend(true);
+    } else {
+      // Reset dialog active flag if no brutal friend message
+      isDialogActiveRef.current = false;
     }
   };
 
@@ -271,7 +244,30 @@ export default function FollowUpCheckInDialog() {
         </DialogContent>
       </Dialog>
 
-      {/* Brutal Friend Dialog - displays message from backend or matrix fallback */}
+      {/* Feedback Dialog */}
+      <Dialog open={showFeedback} onOpenChange={setShowFeedback}>
+        <DialogContent className="sm:max-w-md text-center bg-popover border-2 border-primary z-[100]">
+          <div className="py-6 space-y-6">
+            <div className="inline-flex items-center justify-center w-20 h-20 border-2 border-primary bg-primary/10">
+              <Zap className="w-10 h-10 text-primary" />
+            </div>
+            <h2 className="text-2xl font-black uppercase tracking-tight neon-glow-pink">
+              {feedbackMessage}
+            </h2>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
+              &gt; Data logged. Keep moving.
+            </p>
+          </div>
+          <Button
+            onClick={handleFeedbackClose}
+            className="w-full bg-primary hover:bg-primary/90 font-bold uppercase tracking-wider border-2 border-primary"
+          >
+            CONTINUE
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Brutal Friend Dialog */}
       <BrutalFriendDialog 
         open={showBrutalFriend} 
         onOpenChange={handleBrutalFriendClose}

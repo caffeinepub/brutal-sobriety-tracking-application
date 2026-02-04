@@ -1,12 +1,18 @@
-import List "mo:core/List";
 import Map "mo:core/Map";
-import Nat64 "mo:core/Nat64";
 import Principal "mo:core/Principal";
+import List "mo:core/List";
 
 module {
   type Mood = { #happy; #neutral; #sad };
-  type MotivationLens = { #family; #money; #sex; #health; #sport };
-  type DrinkingBaseline = { #low; #medium; #high; #avoidant };
+
+  type OnboardingAnswers = {
+    ageRange : Text;
+    drinksPerWeek : Text;
+    motivation : Text;
+    secondarySubstance : Text;
+    sobrietyDuration : Text;
+    timeZone : Text;
+  };
 
   type AggregatedEntry = {
     date : Nat64;
@@ -16,17 +22,7 @@ module {
     checkInCount : Nat;
   };
 
-  type OnboardingAnswers = {
-    ageRange : Text;
-    drinksPerWeek : Text;
-    motivation : MotivationLens;
-    secondarySubstance : ?Text;
-    sobrietyDuration : Text;
-    timeZone : Text;
-    baselineTier : DrinkingBaseline;
-  };
-
-  type OldPersistentUserProfile = {
+  type PersistentUserProfile = {
     onboardingAnswers : OnboardingAnswers;
     hasCompletedOnboarding : Bool;
     lastCheckInDate : ?Nat64;
@@ -38,16 +34,12 @@ module {
     lastMotivationClickDay : Nat64;
   };
 
-  type OldActor = {
-    userProfiles : Map.Map<Principal, OldPersistentUserProfile>;
+  // Migration logic: no changes to the state, just carry over
+  type Actor = {
+    userProfiles : Map.Map<Principal, PersistentUserProfile>;
   };
 
-  type NewPersistentUserProfile = OldPersistentUserProfile;
-  type NewActor = {
-    userProfiles : Map.Map<Principal, NewPersistentUserProfile>;
-  };
-
-  public func run(old : OldActor) : NewActor {
-    old;
+  public func run(state : Actor) : Actor {
+    state;
   };
 };

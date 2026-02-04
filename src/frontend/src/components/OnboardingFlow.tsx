@@ -8,7 +8,6 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { Skull, CheckCircle2, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 import type { UserProfile } from '../backend';
-import { DrinkingBaseline, MotivationLens } from '../backend';
 
 const questions = [
   {
@@ -52,48 +51,6 @@ function detectTimeZone(): string {
     console.error('Failed to detect time zone:', error);
     return 'UTC';
   }
-}
-
-// Derive baseline tier from drinks per week answer
-function deriveBaselineTier(drinksPerWeek: string): DrinkingBaseline {
-  switch (drinksPerWeek) {
-    case 'Less than 5':
-      return DrinkingBaseline.low;
-    case '5–10':
-      return DrinkingBaseline.medium;
-    case 'More than 10':
-      return DrinkingBaseline.high;
-    case 'I just drink, don\'t count...':
-      return DrinkingBaseline.avoidant;
-    default:
-      return DrinkingBaseline.low;
-  }
-}
-
-// Map motivation selection to MotivationLens enum
-function mapMotivationToEnum(motivation: string): MotivationLens {
-  switch (motivation.toLowerCase()) {
-    case 'family':
-      return MotivationLens.family;
-    case 'money':
-      return MotivationLens.money;
-    case 'sex':
-      return MotivationLens.sex;
-    case 'health':
-      return MotivationLens.health;
-    case 'sport':
-      return MotivationLens.sport;
-    default:
-      return MotivationLens.family;
-  }
-}
-
-// Map secondary substance to lowercase format expected by backend
-function mapSecondarySubstance(substance: string): string | undefined {
-  if (!substance || substance.trim() === '') {
-    return undefined;
-  }
-  return substance.toLowerCase();
 }
 
 export default function OnboardingFlow() {
@@ -152,28 +109,15 @@ export default function OnboardingFlow() {
       const timeZone = detectTimeZone();
       console.log('Detected time zone:', timeZone);
 
-      // Derive baseline tier from drinks per week answer
-      const baselineTier = deriveBaselineTier(finalAnswers.drinksPerWeek);
-      console.log('Derived baseline tier:', baselineTier);
-
-      // Map motivation to MotivationLens enum
-      const motivationEnum = mapMotivationToEnum(finalAnswers.motivation);
-      console.log('Mapped motivation to enum:', motivationEnum);
-
-      // Map secondary substance to lowercase format
-      const secondarySubstance = mapSecondarySubstance(finalAnswers.secondarySubstance);
-      console.log('Mapped secondary substance:', secondarySubstance);
-
-      // Create UserProfile with correct structure matching backend including timeZone, baselineTier, motivation enum, and optional secondarySubstance
+      // Create UserProfile with correct structure matching backend including timeZone
       const userProfile: UserProfile = {
         onboardingAnswers: {
           ageRange: finalAnswers.ageRange,
           drinksPerWeek: finalAnswers.drinksPerWeek,
-          motivation: motivationEnum,
-          secondarySubstance: secondarySubstance,
+          motivation: finalAnswers.motivation,
+          secondarySubstance: finalAnswers.secondarySubstance,
           sobrietyDuration: finalAnswers.sobrietyDuration,
           timeZone: timeZone,
-          baselineTier: baselineTier,
         },
         hasCompletedOnboarding: true,
       };

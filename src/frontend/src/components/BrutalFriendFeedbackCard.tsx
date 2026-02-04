@@ -1,47 +1,48 @@
 import { useGetLatestBrutalFriendFeedback } from '../hooks/useQueries';
-import { Skull } from 'lucide-react';
 
 export default function BrutalFriendFeedbackCard() {
-  const { data: feedback, isLoading } = useGetLatestBrutalFriendFeedback();
+  const { data: feedback, isLoading, error } = useGetLatestBrutalFriendFeedback();
 
-  // Show loading state while fetching
   if (isLoading) {
     return (
-      <div className="brutalist-card p-6 h-full flex items-center justify-center">
-        <div className="h-6 w-6 animate-spin rounded-sm border-4 border-primary border-t-transparent"></div>
+      <div className="brutal-card border-2 border-border p-6 h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-sm border-4 border-primary border-t-transparent mx-auto mb-2"></div>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider">Loading feedback...</p>
+        </div>
       </div>
     );
   }
 
-  // Show empty state if no feedback yet
-  if (!feedback || feedback.trim() === '') {
+  if (error) {
     return (
-      <div className="brutalist-card p-6 h-full">
-        <div className="flex items-center gap-3 mb-4">
-          <Skull className="w-6 h-6 text-primary" />
-          <h3 className="text-sm font-black uppercase tracking-wider">
-            YOUR BRUTALLY HONEST FRIEND
-          </h3>
-        </div>
-        <p className="text-sm text-muted-foreground italic">
-          Complete your first check-in to hear from your brutally honest friend.
+      <div className="brutal-card border-2 border-border p-6 h-full flex items-center justify-center">
+        <p className="text-sm text-destructive uppercase tracking-wider">Failed to load feedback</p>
+      </div>
+    );
+  }
+
+  // Safely handle feedback - ensure it's a string and provide fallback
+  const displayFeedback = (() => {
+    if (!feedback || typeof feedback !== 'string') {
+      return 'No feedback yet. Complete your first check-in!';
+    }
+    try {
+      const cleaned = feedback.trim();
+      return cleaned || 'No feedback yet. Complete your first check-in!';
+    } catch (error) {
+      console.error('Error processing feedback:', error);
+      return 'No feedback yet. Complete your first check-in!';
+    }
+  })();
+
+  return (
+    <div className="brutal-card border-2 border-border p-6 h-full flex flex-col">
+      <div className="flex-1 flex items-center justify-center">
+        <p className="text-lg font-bold text-center neon-glow-pink uppercase tracking-wide leading-relaxed">
+          {displayFeedback}
         </p>
       </div>
-    );
-  }
-
-  // Show feedback
-  return (
-    <div className="brutalist-card p-6 h-full">
-      <div className="flex items-center gap-3 mb-4">
-        <Skull className="w-6 h-6 text-primary" />
-        <h3 className="text-sm font-black uppercase tracking-wider">
-          YOUR BRUTALLY HONEST FRIEND
-        </h3>
-      </div>
-      <p className="text-base leading-relaxed neon-glow-pink">
-        {feedback}
-      </p>
     </div>
   );
 }

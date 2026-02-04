@@ -1,238 +1,289 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 8,
-  "summary": "BRUTAL is an Internet Computer (ICP) dApp for alcohol reduction/sobriety tracking with a dark, “brutally honest” UX. Users authenticate via Internet Identity, complete an onboarding questionnaire to create a profile, then perform daily check-ins (sober/drank, drink count, mood). The backend aggregates check-ins per day, computes progress metrics and mood trend, serves a personalized sober-days target, and returns “Brutal Friend” feedback and motivation messages derived from a feedback matrix. The frontend presents a responsive dashboard with a 14‑day history chart, streak/target cards, daily status indicators, feedback + motivation dialogs, and follow-up check-ins for subsequent logins within the same day.",
+  "projectStateVersion": 3,
+  "summary": "BRUTAL is a React + Motoko Internet Computer (ICP) application for alcohol reduction/sobriety tracking with a neon/brutalist UI. Users authenticate via Internet Identity, complete a multi-step onboarding questionnaire (including browser-detected time zone), and then perform daily check-ins capturing sober/drank status, drink count, and mood. A Motoko canister stores per-user profiles and per-day aggregated check-ins, computes progress metrics (sober days, drank days, streak, total check-ins), provides mood trend and last-14-days history, and generates “brutal friend” feedback plus rate-limited motivation messages. The dashboard surfaces these metrics and status cards, and drives check-in/onboarding flow based on backend status flags.",
   "existing_features": [
     {
       "id": "IF-1",
-      "title": "Internet Identity authentication with persistent sessions",
+      "title": "Internet Identity authentication & session persistence",
       "synonyms": [
         "II login",
-        "AuthClient authentication"
+        "AuthClient integration",
+        "Identity provider"
       ],
-      "description": "Implements Internet Identity login/logout via `@dfinity/auth-client`, loads stored identities on app mount, tracks login status states, and supports clearing identity (logout). The login flow uses a configurable `II_URL` provider and sets long-lived delegations (30 days).",
+      "description": "Provides login/logout via Internet Identity, loads an existing authenticated session on mount, and exposes identity plus detailed login lifecycle flags through a React context hook.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-2",
-      "title": "Backend actor creation and lifecycle management",
+      "title": "Canister actor creation (anonymous or authenticated) with caching",
       "synonyms": [
-        "ICP actor hook",
-        "useActor"
+        "useActor",
+        "backend connection hook",
+        "actor initialization"
       ],
-      "description": "Creates an authenticated or anonymous canister actor depending on whether the user is logged in. Initializes access control by calling `_initializeAccessControlWithSecret`, and invalidates/refetches all non-actor React Query queries whenever the actor changes (e.g., on login/logout).",
+      "description": "Creates an anonymous actor when logged out and an authenticated actor when logged in; caches the actor via React Query keyed by principal and invalidates/refetches non-actor queries when the actor changes.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-3",
-      "title": "Role-based access control with admin secret bootstrap",
+      "title": "Role-based access control with secret bootstrap",
       "synonyms": [
-        "AccessControl",
-        "admin token gating"
+        "authorization mixin",
+        "admin/user/guest roles",
+        "AccessControl"
       ],
-      "description": "Motoko access control supports `#admin/#user/#guest` roles. The first principal to initialize with the correct secret (compared against `CAFFEINE_ADMIN_TOKEN`) becomes admin; others become users. Admins can assign roles; role checks gate all user endpoints.",
+      "description": "Motoko access control assigns roles during initialization (admin when the provided secret matches the canister’s admin token; otherwise user). Exposes APIs to get caller role, check admin, and assign roles (admin-only).",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-4",
-      "title": "Onboarding questionnaire and profile persistence",
+      "title": "Secure secret parameter handling via URL hash + sessionStorage",
       "synonyms": [
-        "OnboardingFlow",
-        "UserProfile setup"
+        "URL hash secret parsing",
+        "caffeineAdminToken handling",
+        "session token persistence"
       ],
-      "description": "Multi-step onboarding UI collects age range, drinks/week, motivation lens, secondary substance, and sobriety duration. The client detects browser time zone, derives baseline tier, maps motivation to backend enum, and saves a `UserProfile` marking onboarding complete. Robust connection readiness checks and retry/error UI are included.",
+      "description": "Extracts sensitive parameters from the URL hash, persists them in sessionStorage for the session, and removes them from the URL to reduce leakage risk; used to pass an admin bootstrap secret during actor initialization.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-5",
-      "title": "Onboarding and daily/follow-up check-in status API",
+      "title": "React Query API layer for profiles, status, metrics, and check-ins",
       "synonyms": [
-        "Status gating",
-        "checkOnboardingAndCheckInStatus"
+        "useQueries",
+        "TanStack Query hooks",
+        "query invalidation"
       ],
-      "description": "Backend provides a single status call returning `needsOnboarding`, `needsDailyCheckIn`, `isDailyCheckInCompleted`, `isFirstLoginOfDay`, `needsFollowUp`, and a computed `soberDaysTarget`. Frontend uses this to decide between onboarding and dashboard without flashing incorrect UI states.",
+      "description": "Implements typed query/mutation hooks for backend operations with actor-readiness gating, consistent retry behavior, error logging, and query invalidation after mutations (profile saves, check-ins, follow-ups).",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-6",
-      "title": "Daily check-in submission with mood and drink tracking",
+      "title": "Onboarding questionnaire (multi-step) with progress UI and timezone detection",
       "synonyms": [
-        "submitCheckIn",
-        "DailyCheckInDialog"
+        "setup wizard",
+        "onboarding flow",
+        "UserProfile onboarding"
       ],
-      "description": "Daily check-in dialog is triggered only on first login of the day (session-guarded). Users report sober/drank, drink count, and mood. Backend aggregates entries per day, updates per-day totals/status, and returns a feedback message and metadata.",
+      "description": "Multi-step onboarding collects baseline answers (age range, drinks/week, motivation, secondary substance, sobriety duration), detects browser time zone, shows connection/saving status, and persists the profile to the backend.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-7",
-      "title": "Same-day follow-up check-in flow",
+      "title": "Onboarding + daily check-in status endpoint and gating",
       "synonyms": [
-        "FollowUpCheckInDialog",
-        "submitFollowUpCheckIn"
+        "checkOnboardingAndCheckInStatus",
+        "needsDailyCheckIn",
+        "first login flow"
       ],
-      "description": "On subsequent logins during the same day, the app triggers a follow-up dialog offering: confirm remained sober (client-side feedback) or report additional drinks (backend mutation). Results update aggregated data and show a Brutal Friend message.",
+      "description": "Backend computes flags for onboarding completion and daily check-in needs. Frontend uses these flags to decide between onboarding vs dashboard and to trigger check-in/follow-up dialogs.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-8",
-      "title": "Feedback matrix selection (backend) with JSON fallback (frontend)",
+      "title": "Daily check-in capture (sober/drinks/mood) with feedback flow",
       "synonyms": [
-        "Brutal Friend messages",
-        "feedbackMatrix"
+        "DailyCheckInDialog",
+        "submitCheckIn",
+        "daily modal"
       ],
-      "description": "Backend can store feedback matrix entries and selects a best match based on onboarding attributes (age range, motivation lens, baseline tier, optional substance). Frontend loads `/feedbackMatrix.json`, caches it, and searches for a matching message when backend returns an empty message or when generating client-side feedback.",
+      "description": "Modal prompts for sober vs drank, drink count (if drank), and mood selection; uses session guards to prevent duplicate openings; generates a local feedback line and then shows backend-provided brutal-friend feedback after submission.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-9",
-      "title": "Latest Brutal Friend feedback retrieval and display",
+      "title": "Follow-up check-in for additional drinks later the same day",
       "synonyms": [
-        "getLatestBrutalFriendFeedback",
-        "Feedback card"
+        "FollowUpCheckInDialog",
+        "submitFollowUpCheckIn",
+        "same-day update"
       ],
-      "description": "Backend stores the last feedback message per user and exposes it via a query. Frontend displays it in dedicated cards/sections and also caches backend-provided messages after check-in mutations for immediate UI updates.",
+      "description": "When backend indicates a follow-up is needed, prompts the user to confirm sobriety or add more drinks for the day; submits additional drinks and shows feedback plus a brutal-friend message when applicable.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-10",
-      "title": "Motivation button with daily click limit enforcement",
+      "title": "Per-day aggregation and last-14-days retrieval",
       "synonyms": [
-        "getMotivationMessage",
-        "3-per-day limit"
+        "AggregatedEntry",
+        "getLast14Days",
+        "daily bucketing"
       ],
-      "description": "Backend tracks motivation button clicks per day (max 3) and returns remaining clicks and limit status. Frontend shows motivation dialogs, disables the button when limit is reached, and falls back to the local feedback matrix if backend messaging fails or is empty.",
+      "description": "Backend normalizes timestamps into day buckets and merges multiple check-ins for the same day (sum drinks, combine sober state, update mood, increment check-in count). Provides a last-14-days aggregated history used for charting and status sections.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-11",
-      "title": "Progress metrics computation (streaks and totals)",
+      "title": "Progress metrics and streak computation",
       "synonyms": [
         "getProgressMetrics",
+        "ProgressStats",
         "streak tracking"
       ],
-      "description": "Backend computes sober days, drank days, current sober streak, and total check-in count based on aggregated entries. Frontend consumes metrics to render progress sections such as streak and completion indicators.",
+      "description": "Backend computes sober days, drank days, current streak, and total check-ins; frontend converts bigints safely and renders themed stat cards with loading skeletons.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-12",
-      "title": "14-day drink history API and chart visualization",
+      "title": "Mood trend and recent mood display",
       "synonyms": [
-        "getLast14Days",
-        "DrinksChart"
+        "getMoodTrend",
+        "MoodIndicator",
+        "mood average"
       ],
-      "description": "Backend returns aggregated entries from the last 14 days. Frontend renders a responsive bar chart (Recharts) with normalized day labels, loading/updating states, and visual sync indicators when data changes.",
+      "description": "Check-ins include an optional mood (happy/neutral/sad). Backend computes a simple average mood trend; frontend displays the most recent mood from history and supports loading states.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-13",
-      "title": "Mood trend calculation",
+      "title": "Brutal Friend feedback generation, storage, and display",
       "synonyms": [
-        "getMoodTrend",
-        "average mood"
+        "getLatestBrutalFriendFeedback",
+        "BrutalFriendDialog",
+        "feedback cards"
       ],
-      "description": "Backend computes an average mood score across check-ins (happy=2, neutral=1, sad=0) and exposes it via a query hook. Frontend has a hook to retrieve and display this metric (UI component referenced in summaries).",
+      "description": "Backend generates sarcastic feedback and stores the latest per user. Frontend fetches and displays it on the dashboard and in dialogs with safe string handling and fallbacks.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-14",
-      "title": "Personalized sober-days target derived from onboarding",
+      "title": "Motivation messages with daily click limit",
       "synonyms": [
-        "getSoberDaysTarget",
-        "sobrietyDuration mapping"
+        "getMotivationMessage",
+        "Need Motivation button",
+        "rate limit"
       ],
-      "description": "Backend maps `sobrietyDuration` answers (2/5 days, 1/2 weeks, 1 month) into a numeric sober-days target and exposes it via `getSoberDaysTarget`. Frontend displays target and progress against it in `SoberDaysSection`.",
+      "description": "Backend provides motivation messages with a per-user daily limit (3/day) tracked by day bucket counters. Frontend requests messages via a mutation and displays them in a BrutalFriendDialog, showing remaining clicks/limit reached states.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-15",
-      "title": "Dashboard composition and status indicator widgets",
+      "title": "Dashboard visualization and derived status cards",
       "synonyms": [
-        "Dashboard layout",
-        "StatusIndicatorsSection"
+        "DrinksChart",
+        "StatusIndicatorsSection",
+        "dashboard layout"
       ],
-      "description": "Dashboard composes the unified header (daily feedback + motivation), cycle window card (Friday/weekend + full moon countdown), a placeholder chance-of-drinking card, sober streak/target, status indicators (weekly average/yesterday/today), and embeds check-in dialogs for user flows. Includes logout clearing identity and query cache.",
+      "description": "Dashboard composes unified header (feedback + motivation), placeholder risk and cycle cards, sober streak/target section, today/yesterday/weekly-average status indicators derived from aggregated entries, and a 14-day drinks bar chart.",
       "reqIds": [],
       "version": 1
     },
     {
       "id": "IF-16",
-      "title": "Brutalist/neon design system and app metadata",
+      "title": "Dynamic sober-days target derived from onboarding sobriety duration",
       "synonyms": [
-        "Tailwind theme tokens",
-        "OG/Twitter metadata"
+        "SoberDaysSection target",
+        "sobrietyDuration parsing"
       ],
-      "description": "Tailwind config extends OKLCH theme tokens, neon glows, brutal shadows, and animations. `index.html` includes OpenGraph/Twitter metadata and app icons for deployment/publishing. UI uses uppercase typography and sharp borders consistent with the BRUTAL brand.",
+      "description": "Parses the user’s onboarding sobrietyDuration (e.g., “2 days”, “1 week”, “1 month”) into a numeric day target for the dashboard, with a fallback of 30 days.",
       "reqIds": [],
       "version": 1
     },
     {
-      "id": "feature-add-a-frontend-only-feedback-matrix-inspector-view-that-loads-frontend-public-feedbackmatrix-json-via-the-existing-loadfeedbackmatrix-loader-and-displays-for-each-unique-user-input-combination-how-many-feedback-messages-exist-in-the-matrix",
-      "title": "Add a frontend-only “Feedback Matrix Inspector” view that loads `frontend/public/feedbackMatrix.json` via the existing `loadFeedbackMatrix()` loader and displays, for each unique user-input combination, how many feedback messages exist in the matrix.",
-      "reqIds": [
-        "REQ-1"
+      "id": "IF-17",
+      "title": "Global error boundary and resilient loading fallbacks",
+      "synonyms": [
+        "GlobalErrorBoundary",
+        "black-screen prevention",
+        "recovery screen"
       ],
+      "description": "Wraps the application routes in a React error boundary that logs uncaught errors and shows a user-facing recovery screen with a reload button; includes robust loading/timeout fallbacks during authentication, actor initialization, and status resolution.",
+      "reqIds": [],
       "version": 1
     },
     {
-      "id": "feature-in-the-feedback-matrix-inspector-also-display-a-per-entry-sentence-count-for-each-message-computed-on-the-frontend-by-splitting-the-message-text-into-sentences-and-a-per-group-total-sentence-count",
-      "title": "In the Feedback Matrix Inspector, also display a per-entry sentence count for each message (computed on the frontend by splitting the message text into sentences) and a per-group total sentence count.",
+      "id": "IF-18",
+      "title": "Logout clears identity and client-side caches",
+      "synonyms": [
+        "logout",
+        "clear session",
+        "query cache reset"
+      ],
+      "description": "Logout calls Internet Identity logout/clear and clears the React Query cache to remove user-specific data from the client state.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "IF-19",
+      "title": "Neon/brutalist design system and reusable UI primitives",
+      "synonyms": [
+        "Tailwind OKLCH theme",
+        "shadcn UI",
+        "brutal-card utilities"
+      ],
+      "description": "Implements a consistent dark neon/brutalist theme using OKLCH CSS variables, Tailwind extensions (shadows/animations), and reusable UI primitives (Dialog, Card, Button) across login, onboarding, dialogs, and dashboard.",
+      "reqIds": [],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-frontend-fallback-brutal-message-list-used-by-the-motivation-dialog-so-it-includes-the-same-expanded-quote-pool-including-the-30-new-quotes-to-keep-the-ui-consistent-when-a-backend-message-is-missing-empty",
+      "title": "Update the frontend fallback brutal message list used by the motivation dialog so it includes the same expanded quote pool (including the 30+ new quotes) to keep the UI consistent when a backend message is missing/empty.",
       "reqIds": [
         "REQ-2"
       ],
       "version": 1
-    },
-    {
-      "id": "feature-provide-a-safe-way-to-access-the-feedback-matrix-inspector-from-the-app-without-modifying-authentication-internals-add-a-minimal-route-or-conditional-rendering-entry-point-for-example-a-debug-feedback-matrix-route-or-a-debug-feedback-matrix-flag-and-ensure-it-does-not-appear-in-normal-user-flow-by-default",
-      "title": "Provide a safe way to access the Feedback Matrix Inspector from the app without modifying authentication internals: add a minimal route or conditional rendering entry point (for example, a `#/debug/feedback-matrix` route or a `?debug=feedback-matrix` flag) and ensure it does not appear in normal user flow by default.",
-      "reqIds": [
-        "REQ-3"
-      ],
-      "version": 1
     }
   ],
-  "new_feature_requests": [],
-  "architecturalNotes": [
-    "ICP canister backend written in Motoko with state stored in a `Map<Principal, PersistentUserProfile>` and check-ins stored as `List<AggregatedEntry>` per user.",
-    "Backend uses an explicit migration entrypoint: `(with migration = Migration.run) actor { ... }`, allowing schema evolution (e.g., `currentDayCheckInStatus` changed from `Bool` to a record).",
-    "Authorization implemented via an `AccessControlState` and a mixin (`MixinAuthorization`) that exposes role queries and role assignment; first admin assignment is gated by a shared secret compared against the `CAFFEINE_ADMIN_TOKEN` environment variable.",
-    "Frontend is React + TypeScript using `@tanstack/react-query` for data fetching, caching, retries, and mutation-driven invalidation (e.g., invalidating `last14Days`, `progressMetrics`, `moodTrend`, and feedback queries after check-ins).",
-    "A dedicated `useActor` hook creates the backend actor (anonymous or authenticated), initializes access control, and invalidates/refetches all dependent queries when the actor changes.",
-    "Onboarding and check-in gating is driven by a single backend status call (`checkOnboardingAndCheckInStatus`) to avoid UI flashes and to trigger daily/follow-up dialogs.",
-    "Feedback/motivation content is backed by a server-side feedback matrix (admin-addable) and a client-side JSON fallback (`/feedbackMatrix.json`) loaded and cached by `feedbackMatrixLoader.ts`.",
-    "UI uses Tailwind (with custom OKLCH theme tokens and neon/brutalist utilities) and shadcn-style components; dialogs use session-level `useRef` guards to prevent duplicate openings during a session.",
-    "The app extracts a sensitive admin token from the URL hash fragment (`caffeineAdminToken`), persists it in `sessionStorage`, and clears it from the URL to reduce leakage risks."
+  "new_feature_requests": [
+    {
+      "id": "AR-1",
+      "summary": "Add at least 30 new \"Need Motivation\" brutal-friend motivational quotes referencing onboarding/context (ageRange, secondarySubstance incl. games/porn, motivation lens such as family/health/sport), for use via feedbackMatrix selection.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-2",
+      "summary": "Add at least 30 NEW motivational/brutal-friend quotes (in English) that are cheeky, fun, brutally friendly, and honest, and that explicitly reference: age (age range), other drugs/habits including games and porn, family, health, and sports performance. These quotes must be appended to the existing quote pool used by the backend motivation/feedback message generator.",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "status": "pending"
+    }
   ],
-  "knownIssues": [
-    "`frontend/src/index.css` appears twice in the provided codebase with conflicting CSS variable/theme definitions (one BRUTAL neon theme, one default shadcn-like theme). This can cause styling conflicts depending on build resolution.",
-    "`ChanceOfDrinkingCard` uses randomized placeholder logic rather than real risk assessment derived from user data or backend predictions.",
-    "Start-of-day normalization uses a fixed 6-hour offset (`21_600_000` ms) in both frontend and backend; user time zone is collected/stored but not used for day boundaries, which can misclassify check-ins across time zones/DST.",
-    "Backend `feedbackMatrix` is initialized empty and only supports adding entries one-by-one via an admin method; there is no exposed bulk-load or default seeding, so production behavior may rely heavily on the frontend JSON fallback.",
-    "Backend `submitCheckIn` computes `isFollowUp` from the newly written `currentDayCheckInStatus`, making it effectively always `true` for that call; follow-up detection likely needs to be based on the pre-existing status before updating.",
-    "`backend/migration.mo` sets `numberOfChecks` using `oldProfile.currentDayTotalDrinks`, which is semantically incorrect (drinks != number of check-ins) and may corrupt migrated counters.",
-    "`useGetProgressMetrics` on the frontend types the response without `last14Days`, while the backend returns it; not harmful at runtime but indicates a contract mismatch/unused payload.",
-    "Some React Query hooks swallow backend errors by returning defaults (e.g., `useGetLast14Days` returns `[]` on error), which can hide operational issues and complicate debugging.",
-    "Feedback/motivation selection is repeatedly returning the same message (random selection not behaving as expected), likely due to caching, deterministic selection, or lack of proper randomization/seed in feedbackMatrix lookup.",
-    "User reports the in-app code editor/file panel is in read-only mode, preventing manual edits to files like `frontend/public/feedbackMatrix.json`."
+  "architectural_notes": [
+    "Frontend is a React SPA using TanStack React Query for typed data fetching, caching, retries (exponential backoff), and mutation-driven query invalidation.",
+    "Authentication is handled via Internet Identity using @dfinity/auth-client, exposed through a React context hook with login lifecycle state.",
+    "ICP backend communication is via a generated canister actor created in a custom hook (useActor) and cached in React Query keyed by principal.",
+    "Actor initialization calls a canister bootstrap method to assign roles (admin/user) using a secret token flow.",
+    "Backend is a Motoko canister with an authorization mixin (MixinAuthorization) built on an AccessControl module (role-based permissions).",
+    "User check-ins are normalized into day buckets using a fixed 6-hour offset before flooring to day boundaries; frontend charts/status cards replicate this normalization for alignment.",
+    "UI is built with Tailwind CSS + shadcn/Radix-style components, using OKLCH CSS variables, neon glow utilities, and brutalist card styling.",
+    "A global React Error Boundary wraps the app to prevent blank screens on uncaught render/runtime errors and provides a reload recovery UI."
+  ],
+  "known_issues": [
+    "Backend state is not upgrade-stable: userProfiles and access-control role mappings are stored in in-memory Maps/vars with no stable serialization, so data will be lost on canister upgrade/reinstall.",
+    "Time zone handling is inconsistent: onboarding stores a timeZone string, but day bucketing uses a hardcoded 6-hour offset and does not apply the stored time zone or DST rules.",
+    "saveCallerUserProfile overwrites/initializes persistent fields (notably aggregatedEntries) which will erase prior tracking history if the profile is saved again after check-ins exist.",
+    "checkOnboardingAndCheckInStatus uses currentDayCheckInStatus as if it indicates sobriety (lastLoginWasSober), but the backend sets currentDayCheckInStatus to ?true on check-in; it is never set to ?false, so “lastLoginWasSober” is misleading/incorrect.",
+    "Follow-up flow is logically incomplete: backend sets needsFollowUp for any same-day login after a check-in, and the frontend “Remained sober” action does not update backend state, so follow-ups can reappear the same day across sessions.",
+    "getMotivationMessage creates an implicit profile when none exists and sets lastCheckInDate/currentDayCheckInStatus, which can incorrectly affect daily check-in gating for new users.",
+    "Unauthenticated/anonymous actor usage can still trigger authorized queries (e.g., status) because the actor exists even when not logged in; backend traps for non-#user callers, potentially causing noisy errors/toasts unless additionally gated by authentication.",
+    "_initializeAccessControlWithSecret traps if CAFFEINE_ADMIN_TOKEN is not set in the canister environment, which can prevent all authenticated actor initialization in misconfigured deployments.",
+    "submitFollowUpCheckIn does not update currentDayTotalDrinks, so returned/derived totals may be inconsistent with aggregatedEntries.",
+    "getProgressMetrics returns last14Days as a slice of the full entries array (not actually limited to 14 days), which can inflate payload size and mismatch UI expectations.",
+    "Brutal-friend “randomness” is time-derived and predictable; the condition parameter is currently ignored in message selection.",
+    "CycleWindowCard uses a hardcoded 2026 full-moon table but constructs dates using the current year, producing incorrect results outside that dataset.",
+    "ChanceOfDrinkingCard is placeholder logic (randomized) and not based on real user behavior.",
+    "Motivation click limits are enforced in the backend, but the frontend also keeps a local remaining-clicks counter that can become out of sync on refresh or multi-device use."
   ],
   "isFixRequest": false,
   "gameProjectType": "none",
   "projectName": "BRUTAL - Sobriety Tracking",
   "clarification_mode": "instant",
-  "clarification_rounds": 0,
-  "requiresBackendChanges": false,
-  "requiresFrontendChanges": true
+  "clarification_rounds": 0
 }

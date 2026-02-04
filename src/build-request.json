@@ -1,69 +1,53 @@
 {
   "kind": "build_request",
-  "title": "Add a Feedback Matrix inspector showing message counts per user input combination",
+  "title": "Add 30+ new brutal motivational quotes referencing age, other drugs, family, health, and sports performance",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Add a frontend-only “Feedback Matrix Inspector” view that loads `frontend/public/feedbackMatrix.json` via the existing `loadFeedbackMatrix()` loader and displays, for each unique user-input combination, how many feedback messages exist in the matrix.",
-      "target": "frontend",
+      "text": "Add at least 30 NEW motivational/brutal-friend quotes (in English) that are cheeky, fun, brutally friendly, and honest, and that explicitly reference: age (age range), other drugs/habits including games and porn, family, health, and sports performance. These quotes must be appended to the existing quote pool used by the backend motivation/feedback message generator.",
+      "target": "backend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-5"
         ],
         "quotes": [
-          "can you see inside the feedbackMatrix.json, how many sentences are there for each user input?"
+          "great, now we need to add more motivational quotes, make them brutal and reference age, other drugs including games and porn, family, health and sports performance in a cheeky fun and brutal friendly and honest way, add at least 30 of them"
         ]
       },
       "acceptanceCriteria": [
-        "The inspector groups entries by (ageRange, motivation, baselineTier, secondarySubstance) using the same fields used by the matrix selection logic.",
-        "For each group, the UI shows the group key and the total count of messages available for that key.",
-        "The inspector view renders even when the matrix fails to load, showing a clear error state in English (and does not crash the app)."
+        "backend/main.mo contains at least 30 additional unique quotes beyond the current list in brutalFriendFeedbackMessages.",
+        "The new quotes include coverage across the requested themes (age, games/porn/other drugs, family, health, sports performance), with the same overall ‘brutal friend’ tone as existing messages.",
+        "Calling getMotivationMessage can return any of the expanded quote pool (not just the original set)."
       ]
     },
     {
       "id": "REQ-2",
-      "text": "In the Feedback Matrix Inspector, also display a per-entry sentence count for each message (computed on the frontend by splitting the message text into sentences) and a per-group total sentence count.",
+      "text": "Update the frontend fallback brutal message list used by the motivation dialog so it includes the same expanded quote pool (including the 30+ new quotes) to keep the UI consistent when a backend message is missing/empty.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-5"
         ],
         "quotes": [
-          "how many sentences are there for each user input?"
+          "add at least 30 of them"
         ]
       },
       "acceptanceCriteria": [
-        "Each message row shows: the message text and a computed sentence count.",
-        "Each group row shows: message count and total sentences across messages in that group.",
-        "Sentence counting is deterministic and documented in code comments (e.g., split on ., !, ? while ignoring empty results)."
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "text": "Provide a safe way to access the Feedback Matrix Inspector from the app without modifying authentication internals: add a minimal route or conditional rendering entry point (for example, a `#/debug/feedback-matrix` route or a `?debug=feedback-matrix` flag) and ensure it does not appear in normal user flow by default.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-1"
-        ]
-      },
-      "acceptanceCriteria": [
-        "A developer can navigate directly to the inspector using the chosen URL/flag mechanism.",
-        "Normal onboarding/dashboard flows are unchanged unless the debug route/flag is used.",
-        "No changes are made to immutable frontend paths listed in SYSTEM_CONTEXT."
+        "frontend/src/components/BrutalFriendDialog.tsx brutalMessages includes the new 30+ quotes (or otherwise sources the same expanded set) so that random fallback messages can be any of the added quotes.",
+        "No user-facing text for these messages appears in any language other than English."
       ]
     }
   ],
   "constraints": [
-    "Do not edit files in `frontend.immutablePaths` (e.g., `frontend/src/main.tsx`, `frontend/src/hooks/useActor.ts`, `frontend/src/hooks/useInternetIdentity.ts[x]`, and `frontend/src/components/ui`).",
-    "Use the existing `frontend/src/lib/feedbackMatrixLoader.ts` to load `feedbackMatrix.json`; do not add backend endpoints for this.",
-    "Keep all user-facing text in English."
+    "Respect single-actor backend architecture: all Motoko logic stays in backend/main.mo.",
+    "Do not edit any frontend files under frontend/src/components/ui or any path listed in frontend.immutablePaths."
   ],
   "nonGoals": [
-    "Do not change the content or schema of `frontend/public/feedbackMatrix.json` as part of this request.",
-    "Do not change the feedback selection/randomization logic; this request is only for inspection/visibility.",
-    "Do not add new authentication or admin-role features."
+    "Do not change motivation rate limiting logic (daily click limit) or add new limits.",
+    "Do not change onboarding questions/fields or add new profile fields.",
+    "Do not implement a new personalization/templating system for injecting specific age/family/health values into messages (only expand the quote library as requested).",
+    "Do not create or require a backend migration for this change."
   ],
   "imageRequirements": {
     "required": [],

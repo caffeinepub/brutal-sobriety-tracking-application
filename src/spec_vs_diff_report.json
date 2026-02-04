@@ -1,62 +1,33 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-03T10:42:20.730Z",
-  "summary": "The diff adds a new FeedbackMatrixInspector page that loads the matrix via the existing loader, groups by the requested key fields, and computes sentence counts with a documented deterministic algorithm. App.tsx adds a debug-only entry mechanism via hash/query. However, several unrelated UI/auth and other feature changes appear in the diff summary, including edits to an explicitly immutable file (useInternetIdentity.ts), which violates constraints and were not requested. Due to truncation of the inspector UI file, it cannot be confirmed that the UI actually renders all required per-group and per-message counts.",
-  "missing_requirements": [
-    {
-      "id": "REQ-1",
-      "requirement": "For each group, the UI shows the group key and the total count of messages available for that key; the inspector view renders even when the matrix fails to load, showing a clear error state in English (and does not crash the app).",
-      "reason": "Grouping and error state are computed in code, but the file is truncated before the render output, so it cannot be confirmed that the UI actually displays the group key and total message count and presents a clear error state rather than only setting state.",
-      "evidence": [
-        "frontend/src/pages/FeedbackMatrixInspector.tsx (truncated)"
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "requirement": "Each message row shows the message text and computed sentence count; each group row shows message count and total sentences across messages in that group.",
-      "reason": "Sentence counting and per-group totals are computed and stored, but the UI portion is truncated, so it cannot be verified that per-message rows and per-group totals are rendered as required.",
-      "evidence": [
-        "frontend/src/pages/FeedbackMatrixInspector.tsx (truncated)"
-      ]
-    }
-  ],
+  "generatedAt": "2026-02-04T11:41:32.185Z",
+  "summary": "REQ-1 and REQ-2 appear largely implemented by expanding the brutal quote pools in both backend and frontend. However, the diff introduces an unrequested backend migration module and wiring, plus updates to repo metadata/state files, which violate stated constraints/non-goals.",
+  "missing_requirements": [],
   "hallucinated_features": [
     {
-      "description": "Modified an immutable authentication internal file (useInternetIdentity.ts).",
-      "reason": "BuildRequest constraints explicitly disallow editing files in frontend.immutablePaths and include `frontend/src/hooks/useInternetIdentity.ts[x]` as an example; yet it is listed as modified.",
+      "description": "Introduced a backend migration module and wired it into the main canister, despite the non-goal of not creating/requiring a backend migration and the constraint to keep Motoko logic in backend/main.mo.",
+      "reason": "BuildRequest explicitly says not to create/require a backend migration and to keep Motoko logic in backend/main.mo; the diff adds backend/migration.mo and imports/uses it from backend/main.mo.",
       "evidence": [
-        "frontend/src/hooks/useInternetIdentity.ts (truncated)"
+        "backend/migration.mo",
+        "backend/main.mo"
       ]
     },
     {
-      "description": "Unrequested UI/behavior changes across unrelated pages/components (LoginPage typography, onboarding wizard enhancements, dashboard layout/styling, dialogs changes, Tailwind/index.css theme tokens, etc.).",
-      "reason": "The BuildRequest is narrowly scoped to adding a Feedback Matrix Inspector and a debug-only access path, with non-goals stating not to change selection logic and not to add auth/admin features. The diff summary indicates broad UI and behavior modifications unrelated to the inspector.",
+      "description": "Updated project/repo meta documentation/state files not requested by the BuildRequest (frontend-file-summaries.txt and project_state.json).",
+      "reason": "BuildRequest only requests quote library expansion in backend/main.mo and frontend/src/components/BrutalFriendDialog.tsx; meta/state file updates are out of scope.",
       "evidence": [
-        "frontend-file-summaries.txt (truncated)"
-      ]
-    },
-    {
-      "description": "Updates to React Query hooks / backend operation handling (useQueries.ts) not requested.",
-      "reason": "Not part of adding an inspector view or its access mechanism; suggests additional functional changes outside scope.",
-      "evidence": [
-        "frontend-file-summaries.txt (truncated): \"frontend/src/hooks/useQueries.ts\""
-      ]
-    },
-    {
-      "description": "Added/updated project_state.json documentation unrelated to the requested feature.",
-      "reason": "Not requested as part of implementing the inspector view or debug access.",
-      "evidence": [
-        "project_state.json (truncated)"
+        "frontend-file-summaries.txt",
+        "project_state.json"
       ]
     }
   ],
-  "confidence": 0.62,
+  "confidence": 0.74,
   "changed_files": [
+    "backend/main.mo",
+    "backend/migration.mo",
     "frontend-file-summaries.txt",
-    "frontend/src/App.tsx",
-    "frontend/src/hooks/useInternetIdentity.ts",
-    "frontend/src/pages/FeedbackMatrixInspector.tsx",
+    "frontend/src/components/BrutalFriendDialog.tsx",
     "project_state.json"
   ]
 }

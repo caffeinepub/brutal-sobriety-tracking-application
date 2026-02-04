@@ -89,34 +89,6 @@ export class ExternalBlob {
         return this;
     }
 }
-export interface DayCheckInResponse {
-    date: bigint;
-    message: string;
-    totalDrinks: bigint;
-    feedbackMatrixEntry: FeedbackMatrixEntry;
-    isFollowUp: boolean;
-}
-export interface DayCheckinStatus {
-    _firstCheckTime?: bigint;
-    hasCheckedIn: boolean;
-    numberOfChecks: bigint;
-    drinks: bigint;
-}
-export interface OnboardingAnswers {
-    drinksPerWeek: string;
-    secondarySubstance?: string;
-    baselineTier: DrinkingBaseline;
-    sobrietyDuration: string;
-    ageRange: string;
-    motivation: MotivationLens;
-    timeZone: string;
-}
-export interface CheckInEntry {
-    date: bigint;
-    mood?: Mood;
-    sober: boolean;
-    drinks: bigint;
-}
 export interface AggregatedEntry {
     date: bigint;
     mood?: Mood;
@@ -124,40 +96,30 @@ export interface AggregatedEntry {
     checkInCount: bigint;
     drinks: bigint;
 }
-export interface FeedbackMatrixEntry {
-    secondarySubstance?: string;
-    baselineTier: DrinkingBaseline;
-    isWeekend?: boolean;
-    ageRange: string;
-    daysUntilFullMoon?: bigint;
-    streakRatio?: string;
-    message: string;
-    motivation: MotivationLens;
-    chanceOfDrinkingTomorrow?: string;
+export interface CheckInEntry {
+    date: bigint;
+    mood?: Mood;
+    sober: boolean;
+    drinks: bigint;
 }
 export interface UserProfile {
     lastCheckInDate?: bigint;
     onboardingAnswers: OnboardingAnswers;
-    currentDayCheckInStatus?: DayCheckinStatus;
+    currentDayCheckInStatus?: boolean;
     hasCompletedOnboarding: boolean;
 }
-export enum DrinkingBaseline {
-    low = "low",
-    high = "high",
-    avoidant = "avoidant",
-    medium = "medium"
+export interface OnboardingAnswers {
+    drinksPerWeek: string;
+    secondarySubstance: string;
+    sobrietyDuration: string;
+    ageRange: string;
+    motivation: string;
+    timeZone: string;
 }
 export enum Mood {
     sad = "sad",
     happy = "happy",
     neutral = "neutral"
-}
-export enum MotivationLens {
-    sex = "sex",
-    money = "money",
-    sport = "sport",
-    family = "family",
-    health = "health"
 }
 export enum UserRole {
     admin = "admin",
@@ -166,7 +128,6 @@ export enum UserRole {
 }
 export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
-    addFeedbackMatrixEntry(entry: FeedbackMatrixEntry): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     checkOnboardingAndCheckInStatus(): Promise<{
         needsDailyCheckIn: boolean;
@@ -174,7 +135,6 @@ export interface backendInterface {
         isDailyCheckInCompleted: boolean;
         needsOnboarding: boolean;
         lastLoginWasSober: bigint;
-        soberDaysTarget: bigint;
         needsFollowUp: boolean;
     }>;
     getCallerUserProfile(): Promise<UserProfile | null>;
@@ -194,15 +154,18 @@ export interface backendInterface {
         totalCheckIns: bigint;
         currentStreak: bigint;
     }>;
-    getSoberDaysTarget(): Promise<bigint>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     getUserTimeZone(): Promise<string>;
     isCallerAdmin(): Promise<boolean>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
-    submitCheckIn(entry: CheckInEntry): Promise<DayCheckInResponse>;
-    submitFollowUpCheckIn(drinks: bigint): Promise<DayCheckInResponse>;
+    submitCheckIn(entry: CheckInEntry): Promise<{
+        date: bigint;
+        message: string;
+        totalDrinks: bigint;
+    }>;
+    submitFollowUpCheckIn(drinks: bigint): Promise<string>;
 }
-import type { AggregatedEntry as _AggregatedEntry, CheckInEntry as _CheckInEntry, DayCheckInResponse as _DayCheckInResponse, DayCheckinStatus as _DayCheckinStatus, DrinkingBaseline as _DrinkingBaseline, FeedbackMatrixEntry as _FeedbackMatrixEntry, Mood as _Mood, MotivationLens as _MotivationLens, OnboardingAnswers as _OnboardingAnswers, UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
+import type { AggregatedEntry as _AggregatedEntry, CheckInEntry as _CheckInEntry, Mood as _Mood, OnboardingAnswers as _OnboardingAnswers, UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async _initializeAccessControlWithSecret(arg0: string): Promise<void> {
@@ -219,31 +182,17 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async addFeedbackMatrixEntry(arg0: FeedbackMatrixEntry): Promise<void> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.addFeedbackMatrixEntry(to_candid_FeedbackMatrixEntry_n1(this._uploadFile, this._downloadFile, arg0));
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.addFeedbackMatrixEntry(to_candid_FeedbackMatrixEntry_n1(this._uploadFile, this._downloadFile, arg0));
-            return result;
-        }
-    }
     async assignCallerUserRole(arg0: Principal, arg1: UserRole): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.assignCallerUserRole(arg0, to_candid_UserRole_n7(this._uploadFile, this._downloadFile, arg1));
+                const result = await this.actor.assignCallerUserRole(arg0, to_candid_UserRole_n1(this._uploadFile, this._downloadFile, arg1));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.assignCallerUserRole(arg0, to_candid_UserRole_n7(this._uploadFile, this._downloadFile, arg1));
+            const result = await this.actor.assignCallerUserRole(arg0, to_candid_UserRole_n1(this._uploadFile, this._downloadFile, arg1));
             return result;
         }
     }
@@ -253,7 +202,6 @@ export class Backend implements backendInterface {
         isDailyCheckInCompleted: boolean;
         needsOnboarding: boolean;
         lastLoginWasSober: bigint;
-        soberDaysTarget: bigint;
         needsFollowUp: boolean;
     }> {
         if (this.processError) {
@@ -273,42 +221,42 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getCallerUserProfile();
-                return from_candid_opt_n9(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n3(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCallerUserProfile();
-            return from_candid_opt_n9(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n3(this._uploadFile, this._downloadFile, result);
         }
     }
     async getCallerUserRole(): Promise<UserRole> {
         if (this.processError) {
             try {
                 const result = await this.actor.getCallerUserRole();
-                return from_candid_UserRole_n23(this._uploadFile, this._downloadFile, result);
+                return from_candid_UserRole_n8(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCallerUserRole();
-            return from_candid_UserRole_n23(this._uploadFile, this._downloadFile, result);
+            return from_candid_UserRole_n8(this._uploadFile, this._downloadFile, result);
         }
     }
     async getLast14Days(): Promise<Array<AggregatedEntry>> {
         if (this.processError) {
             try {
                 const result = await this.actor.getLast14Days();
-                return from_candid_vec_n25(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n10(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getLast14Days();
-            return from_candid_vec_n25(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n10(this._uploadFile, this._downloadFile, result);
         }
     }
     async getLatestBrutalFriendFeedback(): Promise<string> {
@@ -367,42 +315,28 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getProgressMetrics();
-                return from_candid_record_n31(this._uploadFile, this._downloadFile, result);
+                return from_candid_record_n16(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getProgressMetrics();
-            return from_candid_record_n31(this._uploadFile, this._downloadFile, result);
-        }
-    }
-    async getSoberDaysTarget(): Promise<bigint> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.getSoberDaysTarget();
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.getSoberDaysTarget();
-            return result;
+            return from_candid_record_n16(this._uploadFile, this._downloadFile, result);
         }
     }
     async getUserProfile(arg0: Principal): Promise<UserProfile | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getUserProfile(arg0);
-                return from_candid_opt_n9(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n3(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getUserProfile(arg0);
-            return from_candid_opt_n9(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n3(this._uploadFile, this._downloadFile, result);
         }
     }
     async getUserTimeZone(): Promise<string> {
@@ -436,161 +370,75 @@ export class Backend implements backendInterface {
     async saveCallerUserProfile(arg0: UserProfile): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.saveCallerUserProfile(to_candid_UserProfile_n32(this._uploadFile, this._downloadFile, arg0));
+                const result = await this.actor.saveCallerUserProfile(to_candid_UserProfile_n17(this._uploadFile, this._downloadFile, arg0));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.saveCallerUserProfile(to_candid_UserProfile_n32(this._uploadFile, this._downloadFile, arg0));
+            const result = await this.actor.saveCallerUserProfile(to_candid_UserProfile_n17(this._uploadFile, this._downloadFile, arg0));
             return result;
         }
     }
-    async submitCheckIn(arg0: CheckInEntry): Promise<DayCheckInResponse> {
+    async submitCheckIn(arg0: CheckInEntry): Promise<{
+        date: bigint;
+        message: string;
+        totalDrinks: bigint;
+    }> {
         if (this.processError) {
             try {
-                const result = await this.actor.submitCheckIn(to_candid_CheckInEntry_n38(this._uploadFile, this._downloadFile, arg0));
-                return from_candid_DayCheckInResponse_n42(this._uploadFile, this._downloadFile, result);
+                const result = await this.actor.submitCheckIn(to_candid_CheckInEntry_n19(this._uploadFile, this._downloadFile, arg0));
+                return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.submitCheckIn(to_candid_CheckInEntry_n38(this._uploadFile, this._downloadFile, arg0));
-            return from_candid_DayCheckInResponse_n42(this._uploadFile, this._downloadFile, result);
+            const result = await this.actor.submitCheckIn(to_candid_CheckInEntry_n19(this._uploadFile, this._downloadFile, arg0));
+            return result;
         }
     }
-    async submitFollowUpCheckIn(arg0: bigint): Promise<DayCheckInResponse> {
+    async submitFollowUpCheckIn(arg0: bigint): Promise<string> {
         if (this.processError) {
             try {
                 const result = await this.actor.submitFollowUpCheckIn(arg0);
-                return from_candid_DayCheckInResponse_n42(this._uploadFile, this._downloadFile, result);
+                return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.submitFollowUpCheckIn(arg0);
-            return from_candid_DayCheckInResponse_n42(this._uploadFile, this._downloadFile, result);
+            return result;
         }
     }
 }
-function from_candid_AggregatedEntry_n26(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _AggregatedEntry): AggregatedEntry {
-    return from_candid_record_n27(_uploadFile, _downloadFile, value);
+function from_candid_AggregatedEntry_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _AggregatedEntry): AggregatedEntry {
+    return from_candid_record_n12(_uploadFile, _downloadFile, value);
 }
-function from_candid_DayCheckInResponse_n42(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _DayCheckInResponse): DayCheckInResponse {
-    return from_candid_record_n43(_uploadFile, _downloadFile, value);
+function from_candid_Mood_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Mood): Mood {
+    return from_candid_variant_n15(_uploadFile, _downloadFile, value);
 }
-function from_candid_DayCheckinStatus_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _DayCheckinStatus): DayCheckinStatus {
-    return from_candid_record_n22(_uploadFile, _downloadFile, value);
+function from_candid_UserProfile_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserProfile): UserProfile {
+    return from_candid_record_n5(_uploadFile, _downloadFile, value);
 }
-function from_candid_DrinkingBaseline_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _DrinkingBaseline): DrinkingBaseline {
-    return from_candid_variant_n17(_uploadFile, _downloadFile, value);
+function from_candid_UserRole_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
+    return from_candid_variant_n9(_uploadFile, _downloadFile, value);
 }
-function from_candid_FeedbackMatrixEntry_n44(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _FeedbackMatrixEntry): FeedbackMatrixEntry {
-    return from_candid_record_n45(_uploadFile, _downloadFile, value);
+function from_candid_opt_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Mood]): Mood | null {
+    return value.length === 0 ? null : from_candid_Mood_n14(_uploadFile, _downloadFile, value[0]);
 }
-function from_candid_Mood_n29(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Mood): Mood {
-    return from_candid_variant_n30(_uploadFile, _downloadFile, value);
+function from_candid_opt_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UserProfile]): UserProfile | null {
+    return value.length === 0 ? null : from_candid_UserProfile_n4(_uploadFile, _downloadFile, value[0]);
 }
-function from_candid_MotivationLens_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _MotivationLens): MotivationLens {
-    return from_candid_variant_n19(_uploadFile, _downloadFile, value);
-}
-function from_candid_OnboardingAnswers_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _OnboardingAnswers): OnboardingAnswers {
-    return from_candid_record_n14(_uploadFile, _downloadFile, value);
-}
-function from_candid_UserProfile_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserProfile): UserProfile {
-    return from_candid_record_n11(_uploadFile, _downloadFile, value);
-}
-function from_candid_UserRole_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
-    return from_candid_variant_n24(_uploadFile, _downloadFile, value);
-}
-function from_candid_opt_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [bigint]): bigint | null {
+function from_candid_opt_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [bigint]): bigint | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
+function from_candid_opt_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [boolean]): boolean | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_DayCheckinStatus]): DayCheckinStatus | null {
-    return value.length === 0 ? null : from_candid_DayCheckinStatus_n21(_uploadFile, _downloadFile, value[0]);
-}
-function from_candid_opt_n28(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Mood]): Mood | null {
-    return value.length === 0 ? null : from_candid_Mood_n29(_uploadFile, _downloadFile, value[0]);
-}
-function from_candid_opt_n46(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [boolean]): boolean | null {
-    return value.length === 0 ? null : value[0];
-}
-function from_candid_opt_n47(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [bigint]): bigint | null {
-    return value.length === 0 ? null : value[0];
-}
-function from_candid_opt_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UserProfile]): UserProfile | null {
-    return value.length === 0 ? null : from_candid_UserProfile_n10(_uploadFile, _downloadFile, value[0]);
-}
-function from_candid_record_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    lastCheckInDate: [] | [bigint];
-    onboardingAnswers: _OnboardingAnswers;
-    currentDayCheckInStatus: [] | [_DayCheckinStatus];
-    hasCompletedOnboarding: boolean;
-}): {
-    lastCheckInDate?: bigint;
-    onboardingAnswers: OnboardingAnswers;
-    currentDayCheckInStatus?: DayCheckinStatus;
-    hasCompletedOnboarding: boolean;
-} {
-    return {
-        lastCheckInDate: record_opt_to_undefined(from_candid_opt_n12(_uploadFile, _downloadFile, value.lastCheckInDate)),
-        onboardingAnswers: from_candid_OnboardingAnswers_n13(_uploadFile, _downloadFile, value.onboardingAnswers),
-        currentDayCheckInStatus: record_opt_to_undefined(from_candid_opt_n20(_uploadFile, _downloadFile, value.currentDayCheckInStatus)),
-        hasCompletedOnboarding: value.hasCompletedOnboarding
-    };
-}
-function from_candid_record_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    drinksPerWeek: string;
-    secondarySubstance: [] | [string];
-    baselineTier: _DrinkingBaseline;
-    sobrietyDuration: string;
-    ageRange: string;
-    motivation: _MotivationLens;
-    timeZone: string;
-}): {
-    drinksPerWeek: string;
-    secondarySubstance?: string;
-    baselineTier: DrinkingBaseline;
-    sobrietyDuration: string;
-    ageRange: string;
-    motivation: MotivationLens;
-    timeZone: string;
-} {
-    return {
-        drinksPerWeek: value.drinksPerWeek,
-        secondarySubstance: record_opt_to_undefined(from_candid_opt_n15(_uploadFile, _downloadFile, value.secondarySubstance)),
-        baselineTier: from_candid_DrinkingBaseline_n16(_uploadFile, _downloadFile, value.baselineTier),
-        sobrietyDuration: value.sobrietyDuration,
-        ageRange: value.ageRange,
-        motivation: from_candid_MotivationLens_n18(_uploadFile, _downloadFile, value.motivation),
-        timeZone: value.timeZone
-    };
-}
-function from_candid_record_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    _firstCheckTime: [] | [bigint];
-    hasCheckedIn: boolean;
-    numberOfChecks: bigint;
-    drinks: bigint;
-}): {
-    _firstCheckTime?: bigint;
-    hasCheckedIn: boolean;
-    numberOfChecks: bigint;
-    drinks: bigint;
-} {
-    return {
-        _firstCheckTime: record_opt_to_undefined(from_candid_opt_n12(_uploadFile, _downloadFile, value._firstCheckTime)),
-        hasCheckedIn: value.hasCheckedIn,
-        numberOfChecks: value.numberOfChecks,
-        drinks: value.drinks
-    };
-}
-function from_candid_record_n27(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     date: bigint;
     mood: [] | [_Mood];
     sober: boolean;
@@ -605,13 +453,13 @@ function from_candid_record_n27(_uploadFile: (file: ExternalBlob) => Promise<Uin
 } {
     return {
         date: value.date,
-        mood: record_opt_to_undefined(from_candid_opt_n28(_uploadFile, _downloadFile, value.mood)),
+        mood: record_opt_to_undefined(from_candid_opt_n13(_uploadFile, _downloadFile, value.mood)),
         sober: value.sober,
         checkInCount: value.checkInCount,
         drinks: value.drinks
     };
 }
-function from_candid_record_n31(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     last14Days: Array<_AggregatedEntry>;
     drankDays: bigint;
     soberDays: bigint;
@@ -625,101 +473,32 @@ function from_candid_record_n31(_uploadFile: (file: ExternalBlob) => Promise<Uin
     currentStreak: bigint;
 } {
     return {
-        last14Days: from_candid_vec_n25(_uploadFile, _downloadFile, value.last14Days),
+        last14Days: from_candid_vec_n10(_uploadFile, _downloadFile, value.last14Days),
         drankDays: value.drankDays,
         soberDays: value.soberDays,
         totalCheckIns: value.totalCheckIns,
         currentStreak: value.currentStreak
     };
 }
-function from_candid_record_n43(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    date: bigint;
-    message: string;
-    totalDrinks: bigint;
-    feedbackMatrixEntry: _FeedbackMatrixEntry;
-    isFollowUp: boolean;
+function from_candid_record_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    lastCheckInDate: [] | [bigint];
+    onboardingAnswers: _OnboardingAnswers;
+    currentDayCheckInStatus: [] | [boolean];
+    hasCompletedOnboarding: boolean;
 }): {
-    date: bigint;
-    message: string;
-    totalDrinks: bigint;
-    feedbackMatrixEntry: FeedbackMatrixEntry;
-    isFollowUp: boolean;
+    lastCheckInDate?: bigint;
+    onboardingAnswers: OnboardingAnswers;
+    currentDayCheckInStatus?: boolean;
+    hasCompletedOnboarding: boolean;
 } {
     return {
-        date: value.date,
-        message: value.message,
-        totalDrinks: value.totalDrinks,
-        feedbackMatrixEntry: from_candid_FeedbackMatrixEntry_n44(_uploadFile, _downloadFile, value.feedbackMatrixEntry),
-        isFollowUp: value.isFollowUp
+        lastCheckInDate: record_opt_to_undefined(from_candid_opt_n6(_uploadFile, _downloadFile, value.lastCheckInDate)),
+        onboardingAnswers: value.onboardingAnswers,
+        currentDayCheckInStatus: record_opt_to_undefined(from_candid_opt_n7(_uploadFile, _downloadFile, value.currentDayCheckInStatus)),
+        hasCompletedOnboarding: value.hasCompletedOnboarding
     };
 }
-function from_candid_record_n45(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    secondarySubstance: [] | [string];
-    baselineTier: _DrinkingBaseline;
-    isWeekend: [] | [boolean];
-    ageRange: string;
-    daysUntilFullMoon: [] | [bigint];
-    streakRatio: [] | [string];
-    message: string;
-    motivation: _MotivationLens;
-    chanceOfDrinkingTomorrow: [] | [string];
-}): {
-    secondarySubstance?: string;
-    baselineTier: DrinkingBaseline;
-    isWeekend?: boolean;
-    ageRange: string;
-    daysUntilFullMoon?: bigint;
-    streakRatio?: string;
-    message: string;
-    motivation: MotivationLens;
-    chanceOfDrinkingTomorrow?: string;
-} {
-    return {
-        secondarySubstance: record_opt_to_undefined(from_candid_opt_n15(_uploadFile, _downloadFile, value.secondarySubstance)),
-        baselineTier: from_candid_DrinkingBaseline_n16(_uploadFile, _downloadFile, value.baselineTier),
-        isWeekend: record_opt_to_undefined(from_candid_opt_n46(_uploadFile, _downloadFile, value.isWeekend)),
-        ageRange: value.ageRange,
-        daysUntilFullMoon: record_opt_to_undefined(from_candid_opt_n47(_uploadFile, _downloadFile, value.daysUntilFullMoon)),
-        streakRatio: record_opt_to_undefined(from_candid_opt_n15(_uploadFile, _downloadFile, value.streakRatio)),
-        message: value.message,
-        motivation: from_candid_MotivationLens_n18(_uploadFile, _downloadFile, value.motivation),
-        chanceOfDrinkingTomorrow: record_opt_to_undefined(from_candid_opt_n15(_uploadFile, _downloadFile, value.chanceOfDrinkingTomorrow))
-    };
-}
-function from_candid_variant_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    low: null;
-} | {
-    high: null;
-} | {
-    avoidant: null;
-} | {
-    medium: null;
-}): DrinkingBaseline {
-    return "low" in value ? DrinkingBaseline.low : "high" in value ? DrinkingBaseline.high : "avoidant" in value ? DrinkingBaseline.avoidant : "medium" in value ? DrinkingBaseline.medium : value;
-}
-function from_candid_variant_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    sex: null;
-} | {
-    money: null;
-} | {
-    sport: null;
-} | {
-    family: null;
-} | {
-    health: null;
-}): MotivationLens {
-    return "sex" in value ? MotivationLens.sex : "money" in value ? MotivationLens.money : "sport" in value ? MotivationLens.sport : "family" in value ? MotivationLens.family : "health" in value ? MotivationLens.health : value;
-}
-function from_candid_variant_n24(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    admin: null;
-} | {
-    user: null;
-} | {
-    guest: null;
-}): UserRole {
-    return "admin" in value ? UserRole.admin : "user" in value ? UserRole.user : "guest" in value ? UserRole.guest : value;
-}
-function from_candid_variant_n30(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     sad: null;
 } | {
     happy: null;
@@ -728,133 +507,49 @@ function from_candid_variant_n30(_uploadFile: (file: ExternalBlob) => Promise<Ui
 }): Mood {
     return "sad" in value ? Mood.sad : "happy" in value ? Mood.happy : "neutral" in value ? Mood.neutral : value;
 }
-function from_candid_vec_n25(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_AggregatedEntry>): Array<AggregatedEntry> {
-    return value.map((x)=>from_candid_AggregatedEntry_n26(_uploadFile, _downloadFile, x));
+function from_candid_variant_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    admin: null;
+} | {
+    user: null;
+} | {
+    guest: null;
+}): UserRole {
+    return "admin" in value ? UserRole.admin : "user" in value ? UserRole.user : "guest" in value ? UserRole.guest : value;
 }
-function to_candid_CheckInEntry_n38(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: CheckInEntry): _CheckInEntry {
-    return to_candid_record_n39(_uploadFile, _downloadFile, value);
+function from_candid_vec_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_AggregatedEntry>): Array<AggregatedEntry> {
+    return value.map((x)=>from_candid_AggregatedEntry_n11(_uploadFile, _downloadFile, x));
 }
-function to_candid_DayCheckinStatus_n36(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: DayCheckinStatus): _DayCheckinStatus {
-    return to_candid_record_n37(_uploadFile, _downloadFile, value);
+function to_candid_CheckInEntry_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: CheckInEntry): _CheckInEntry {
+    return to_candid_record_n20(_uploadFile, _downloadFile, value);
 }
-function to_candid_DrinkingBaseline_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: DrinkingBaseline): _DrinkingBaseline {
-    return to_candid_variant_n4(_uploadFile, _downloadFile, value);
+function to_candid_Mood_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Mood): _Mood {
+    return to_candid_variant_n22(_uploadFile, _downloadFile, value);
 }
-function to_candid_FeedbackMatrixEntry_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: FeedbackMatrixEntry): _FeedbackMatrixEntry {
-    return to_candid_record_n2(_uploadFile, _downloadFile, value);
+function to_candid_UserProfile_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserProfile): _UserProfile {
+    return to_candid_record_n18(_uploadFile, _downloadFile, value);
 }
-function to_candid_Mood_n40(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Mood): _Mood {
-    return to_candid_variant_n41(_uploadFile, _downloadFile, value);
+function to_candid_UserRole_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): _UserRole {
+    return to_candid_variant_n2(_uploadFile, _downloadFile, value);
 }
-function to_candid_MotivationLens_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: MotivationLens): _MotivationLens {
-    return to_candid_variant_n6(_uploadFile, _downloadFile, value);
-}
-function to_candid_OnboardingAnswers_n34(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: OnboardingAnswers): _OnboardingAnswers {
-    return to_candid_record_n35(_uploadFile, _downloadFile, value);
-}
-function to_candid_UserProfile_n32(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserProfile): _UserProfile {
-    return to_candid_record_n33(_uploadFile, _downloadFile, value);
-}
-function to_candid_UserRole_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): _UserRole {
-    return to_candid_variant_n8(_uploadFile, _downloadFile, value);
-}
-function to_candid_record_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    secondarySubstance?: string;
-    baselineTier: DrinkingBaseline;
-    isWeekend?: boolean;
-    ageRange: string;
-    daysUntilFullMoon?: bigint;
-    streakRatio?: string;
-    message: string;
-    motivation: MotivationLens;
-    chanceOfDrinkingTomorrow?: string;
-}): {
-    secondarySubstance: [] | [string];
-    baselineTier: _DrinkingBaseline;
-    isWeekend: [] | [boolean];
-    ageRange: string;
-    daysUntilFullMoon: [] | [bigint];
-    streakRatio: [] | [string];
-    message: string;
-    motivation: _MotivationLens;
-    chanceOfDrinkingTomorrow: [] | [string];
-} {
-    return {
-        secondarySubstance: value.secondarySubstance ? candid_some(value.secondarySubstance) : candid_none(),
-        baselineTier: to_candid_DrinkingBaseline_n3(_uploadFile, _downloadFile, value.baselineTier),
-        isWeekend: value.isWeekend ? candid_some(value.isWeekend) : candid_none(),
-        ageRange: value.ageRange,
-        daysUntilFullMoon: value.daysUntilFullMoon ? candid_some(value.daysUntilFullMoon) : candid_none(),
-        streakRatio: value.streakRatio ? candid_some(value.streakRatio) : candid_none(),
-        message: value.message,
-        motivation: to_candid_MotivationLens_n5(_uploadFile, _downloadFile, value.motivation),
-        chanceOfDrinkingTomorrow: value.chanceOfDrinkingTomorrow ? candid_some(value.chanceOfDrinkingTomorrow) : candid_none()
-    };
-}
-function to_candid_record_n33(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function to_candid_record_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     lastCheckInDate?: bigint;
     onboardingAnswers: OnboardingAnswers;
-    currentDayCheckInStatus?: DayCheckinStatus;
+    currentDayCheckInStatus?: boolean;
     hasCompletedOnboarding: boolean;
 }): {
     lastCheckInDate: [] | [bigint];
     onboardingAnswers: _OnboardingAnswers;
-    currentDayCheckInStatus: [] | [_DayCheckinStatus];
+    currentDayCheckInStatus: [] | [boolean];
     hasCompletedOnboarding: boolean;
 } {
     return {
         lastCheckInDate: value.lastCheckInDate ? candid_some(value.lastCheckInDate) : candid_none(),
-        onboardingAnswers: to_candid_OnboardingAnswers_n34(_uploadFile, _downloadFile, value.onboardingAnswers),
-        currentDayCheckInStatus: value.currentDayCheckInStatus ? candid_some(to_candid_DayCheckinStatus_n36(_uploadFile, _downloadFile, value.currentDayCheckInStatus)) : candid_none(),
+        onboardingAnswers: value.onboardingAnswers,
+        currentDayCheckInStatus: value.currentDayCheckInStatus ? candid_some(value.currentDayCheckInStatus) : candid_none(),
         hasCompletedOnboarding: value.hasCompletedOnboarding
     };
 }
-function to_candid_record_n35(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    drinksPerWeek: string;
-    secondarySubstance?: string;
-    baselineTier: DrinkingBaseline;
-    sobrietyDuration: string;
-    ageRange: string;
-    motivation: MotivationLens;
-    timeZone: string;
-}): {
-    drinksPerWeek: string;
-    secondarySubstance: [] | [string];
-    baselineTier: _DrinkingBaseline;
-    sobrietyDuration: string;
-    ageRange: string;
-    motivation: _MotivationLens;
-    timeZone: string;
-} {
-    return {
-        drinksPerWeek: value.drinksPerWeek,
-        secondarySubstance: value.secondarySubstance ? candid_some(value.secondarySubstance) : candid_none(),
-        baselineTier: to_candid_DrinkingBaseline_n3(_uploadFile, _downloadFile, value.baselineTier),
-        sobrietyDuration: value.sobrietyDuration,
-        ageRange: value.ageRange,
-        motivation: to_candid_MotivationLens_n5(_uploadFile, _downloadFile, value.motivation),
-        timeZone: value.timeZone
-    };
-}
-function to_candid_record_n37(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    _firstCheckTime?: bigint;
-    hasCheckedIn: boolean;
-    numberOfChecks: bigint;
-    drinks: bigint;
-}): {
-    _firstCheckTime: [] | [bigint];
-    hasCheckedIn: boolean;
-    numberOfChecks: bigint;
-    drinks: bigint;
-} {
-    return {
-        _firstCheckTime: value._firstCheckTime ? candid_some(value._firstCheckTime) : candid_none(),
-        hasCheckedIn: value.hasCheckedIn,
-        numberOfChecks: value.numberOfChecks,
-        drinks: value.drinks
-    };
-}
-function to_candid_record_n39(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function to_candid_record_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     date: bigint;
     mood?: Mood;
     sober: boolean;
@@ -867,69 +562,12 @@ function to_candid_record_n39(_uploadFile: (file: ExternalBlob) => Promise<Uint8
 } {
     return {
         date: value.date,
-        mood: value.mood ? candid_some(to_candid_Mood_n40(_uploadFile, _downloadFile, value.mood)) : candid_none(),
+        mood: value.mood ? candid_some(to_candid_Mood_n21(_uploadFile, _downloadFile, value.mood)) : candid_none(),
         sober: value.sober,
         drinks: value.drinks
     };
 }
-function to_candid_variant_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: DrinkingBaseline): {
-    low: null;
-} | {
-    high: null;
-} | {
-    avoidant: null;
-} | {
-    medium: null;
-} {
-    return value == DrinkingBaseline.low ? {
-        low: null
-    } : value == DrinkingBaseline.high ? {
-        high: null
-    } : value == DrinkingBaseline.avoidant ? {
-        avoidant: null
-    } : value == DrinkingBaseline.medium ? {
-        medium: null
-    } : value;
-}
-function to_candid_variant_n41(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Mood): {
-    sad: null;
-} | {
-    happy: null;
-} | {
-    neutral: null;
-} {
-    return value == Mood.sad ? {
-        sad: null
-    } : value == Mood.happy ? {
-        happy: null
-    } : value == Mood.neutral ? {
-        neutral: null
-    } : value;
-}
-function to_candid_variant_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: MotivationLens): {
-    sex: null;
-} | {
-    money: null;
-} | {
-    sport: null;
-} | {
-    family: null;
-} | {
-    health: null;
-} {
-    return value == MotivationLens.sex ? {
-        sex: null
-    } : value == MotivationLens.money ? {
-        money: null
-    } : value == MotivationLens.sport ? {
-        sport: null
-    } : value == MotivationLens.family ? {
-        family: null
-    } : value == MotivationLens.health ? {
-        health: null
-    } : value;
-}
-function to_candid_variant_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): {
+function to_candid_variant_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): {
     admin: null;
 } | {
     user: null;
@@ -942,6 +580,21 @@ function to_candid_variant_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8
         user: null
     } : value == UserRole.guest ? {
         guest: null
+    } : value;
+}
+function to_candid_variant_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Mood): {
+    sad: null;
+} | {
+    happy: null;
+} | {
+    neutral: null;
+} {
+    return value == Mood.sad ? {
+        sad: null
+    } : value == Mood.happy ? {
+        happy: null
+    } : value == Mood.neutral ? {
+        neutral: null
     } : value;
 }
 export interface CreateActorOptions {

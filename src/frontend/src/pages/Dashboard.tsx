@@ -1,6 +1,6 @@
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { useQueryClient } from '@tanstack/react-query';
-import { useGetLast14Days, useGetProgressMetrics } from '../hooks/useQueries';
+import { useGetLast14Days, useGetProgressMetrics, useGetCallerUserProfile } from '../hooks/useQueries';
 import Header from '../components/Header';
 import DrinksChart from '../components/DrinksChart';
 import DailyCheckInDialog from '../components/DailyCheckInDialog';
@@ -12,21 +12,36 @@ import SoberDaysSection from '../components/SoberDaysSection';
 import StatusIndicatorsSection from '../components/StatusIndicatorsSection';
 import { SiX, SiFacebook, SiInstagram } from 'react-icons/si';
 import { Heart } from 'lucide-react';
+import { parseSobrietyDurationToDays } from '../utils/sobrietyDuration';
 
 export default function Dashboard() {
   const { identity, clear } = useInternetIdentity();
   const queryClient = useQueryClient();
   const { data: chartData = [], isLoading: chartLoading, isFetching: chartFetching } = useGetLast14Days();
   const { data: metrics } = useGetProgressMetrics();
-
-  if (!identity) {
-    return null;
-  }
+  const { data: userProfile } = useGetCallerUserProfile();
 
   const handleLogout = async () => {
     await clear();
     queryClient.clear();
   };
+
+  // Parse sobriety duration from user profile, fallback to 30
+  const soberDaysTarget = parseSobrietyDurationToDays(
+    userProfile?.onboardingAnswers?.sobrietyDuration
+  );
+
+  // Always render a valid UI, even if identity is temporarily unavailable
+  if (!identity) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 h-12 w-12 animate-spin rounded-sm border-4 border-primary border-t-transparent mx-auto"></div>
+          <p className="text-muted-foreground font-bold uppercase tracking-wider">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -51,7 +66,7 @@ export default function Dashboard() {
           </div>
 
           {/* 3. Sober Days Section - Streak and Target */}
-          <SoberDaysSection metrics={metrics} />
+          <SoberDaysSection metrics={metrics} soberDaysTarget={soberDaysTarget} />
 
           {/* 4. Status Indicators Section - Weekly Average, Yesterday, Today */}
           <StatusIndicatorsSection chartData={chartData} />
