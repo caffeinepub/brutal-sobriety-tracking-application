@@ -2,10 +2,10 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-remove-the-14-day-drinks-per-day-graph-from-the-dashboard-ui-so-the-bar-chart-is-no-longer-rendered-on-the-dashboard-page",
-      "featureTitle": "Remove the 14-day drinks-per-day graph from the dashboard UI so the bar chart is no longer rendered on the Dashboard page.",
+      "featureId": "feature-update-the-sign-in-page-to-display-the-app-name-text-brutal-in-a-prominent-on-brand-way-e-g-as-a-heading-near-the-existing-logo-title-without-altering-or-re-laying-out-any-other-existing-sign-in-page-content-beyond-what-is-necessary-to-insert-the-name",
+      "featureTitle": "Update the sign-in page to display the app name text \"BRUTAL\" in a prominent, on-brand way (e.g., as a heading near the existing logo/title), without altering or re-laying out any other existing sign-in page content beyond what is necessary to insert the name.",
       "files": [
-        "frontend/src/pages/Dashboard.tsx"
+        "frontend/src/pages/LoginPage.tsx"
       ],
       "components": [
         "authorization@4.0.0",

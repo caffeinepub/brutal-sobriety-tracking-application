@@ -20,6 +20,11 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="max-w-2xl w-full text-center space-y-8 animate-quick-fade">
+          {/* App Name */}
+          <h1 className="text-5xl md:text-6xl font-black uppercase tracking-tighter neon-glow-pink">
+            BRUTAL
+          </h1>
+
           {/* Logo - Slightly enlarged for central dominance */}
           <div className="flex justify-center mb-4">
             {logoLoaded ? (
@@ -37,10 +42,10 @@ export default function LoginPage() {
 
           {/* Title - Two lines with text-4xl (~28px) */}
           <div className="space-y-2">
-            <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight neon-glow-pink leading-tight">
+            <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tight neon-glow-pink leading-tight">
               <div>Alcohol Reduction</div>
               <div>Without Bullshit</div>
-            </h1>
+            </h2>
             {/* Tagline - text-xl (~20px), positioned closer to headline */}
             <p className="text-base md:text-xl font-bold text-secondary neon-glow-blue uppercase tracking-wide pt-1">
               Drink less. Or don't. Just stop lying to yourself.

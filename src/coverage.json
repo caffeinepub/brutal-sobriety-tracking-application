@@ -1,7 +1,7 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-04T13:24:52.103Z",
+  "generatedAt": "2026-02-04T13:43:19.556Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
@@ -12,13 +12,13 @@
     "items": [
       {
         "id": "REQ-5",
-        "summary": "Remove the 14-day drinks-per-day graph from the dashboard UI so the bar chart is no longer rendered on the Dashboard page.",
+        "summary": "Update the sign-in page to display the app name text \"BRUTAL\" in a prominent, on-brand way (e.g., as a heading near the existing logo/title), without altering or re-laying out any other existing sign-in page content beyond what is necessary to insert the name.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/pages/Dashboard.tsx"
+          "frontend/src/pages/LoginPage.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/pages/Dashboard.tsx"
+          "frontend/src/pages/LoginPage.tsx"
         ]
       }
     ]
@@ -28,7 +28,7 @@
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/pages/Dashboard.tsx",
+    "frontend/src/pages/LoginPage.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

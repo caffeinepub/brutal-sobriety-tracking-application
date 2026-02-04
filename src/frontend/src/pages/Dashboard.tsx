@@ -348,7 +348,7 @@ export default function Dashboard() {
               className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wider shadow-neon-sm"
             >
               <Plus className="w-5 h-5 mr-2" />
-              Start Check-In
+              CHECK IN
             </Button>
           </div>
         )}

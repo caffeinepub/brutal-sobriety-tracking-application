@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 6,
+  "projectStateVersion": 14,
   "summary": "BRUTAL is a React (TypeScript) + Motoko (Internet Computer) sobriety/alcohol-reduction tracking app with a neon/brutalist UI. Users authenticate via Internet Identity, complete a multi-step onboarding questionnaire (including browser-detected time zone), then log daily check-ins capturing sober/drank status, drink count, and mood. The Motoko canister maintains per-user profiles, aggregates check-ins into per-day summaries, computes progress metrics (sober days, drunk days, streak, total check-ins) and mood trend, stores and serves “brutal friend” feedback messages, and provides a rate-limited motivation message endpoint. The frontend uses TanStack React Query for typed queries/mutations with retries and cache invalidation, and orchestrates daily modal popups through a deterministic session-flow state machine (auto-starting only the first daily check-in, while repeat check-ins require an explicit manual trigger).",
   "existing_features": [
     {
@@ -267,8 +267,8 @@
       "version": 1
     },
     {
-      "id": "feature-remove-the-14-day-drinks-per-day-graph-from-the-dashboard-ui-so-the-bar-chart-is-no-longer-rendered-on-the-dashboard-page",
-      "title": "Remove the 14-day drinks-per-day graph from the dashboard UI so the bar chart is no longer rendered on the Dashboard page.",
+      "id": "feature-update-the-sign-in-page-to-display-the-app-name-text-brutal-in-a-prominent-on-brand-way-e-g-as-a-heading-near-the-existing-logo-title-without-altering-or-re-laying-out-any-other-existing-sign-in-page-content-beyond-what-is-necessary-to-insert-the-name",
+      "title": "Update the sign-in page to display the app name text \"BRUTAL\" in a prominent, on-brand way (e.g., as a heading near the existing logo/title), without altering or re-laying out any other existing sign-in page content beyond what is necessary to insert the name.",
       "reqIds": [
         "REQ-5"
       ],
@@ -278,7 +278,7 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Remove the 14-day drinks-per-day graph from the dashboard UI",
+      "summary": "Add the app name \"BRUTAL\" somewhere on the sign-in page without changing anything else on that page",
       "reqIds": [],
       "status": "pending"
     }
@@ -292,8 +292,8 @@
     "A fixed 6-hour offset day-normalization function is implemented both in backend and frontend for day bucketing and UI labels.",
     "Backend exposes typed endpoints for onboarding/check-in status, profile CRUD, check-in submission, metrics, mood trend, feedback, and motivation messages.",
     "UI is built with Tailwind + shadcn/Radix-style primitives (Dialog/Card/Button/Input), with centralized OKLCH theme tokens and neon/brutalist utility styles.",
-    "Numeric candid values are represented as bigint in the frontend and converted to number only for display/derived calculations.",
-    "Global error handling uses a top-level React error boundary and toast notifications (sonner) for async failures."
+    "Global error handling uses a top-level React error boundary and toast notifications (sonner) for async failures.",
+    "Repository now includes a reusable build-template for React (Vite/TS) + Motoko canisters with pnpm workspace setup, Dockerfile, deploy.sh, and icp.yaml for standardized build/deploy."
   ],
   "known_issues": [
     "useActor returns an anonymous actor when logged out; status/profile queries are enabled when the anonymous actor is ready, causing canister calls to trap with Unauthorized and generating noisy errors before login.",

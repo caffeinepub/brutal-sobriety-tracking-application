@@ -1,20 +1,21 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Remove drinks-per-day chart from Dashboard",
+  "title": "Add “BRUTAL” app name text to sign-in page",
   "requirements": [
     {
       "id": "REQ-5",
-      "summary": "Stop rendering the 14-day drinks-per-day bar chart on the Dashboard page.",
+      "summary": "Display the app name “BRUTAL” prominently on the sign-in page without changing other sign-in content or any onboarding/sign-up pages.",
       "acceptanceCriteria": [
-        "Dashboard no longer renders the <DrinksChart /> section (the \"14-Day History\" card is not visible).",
-        "Dashboard still loads and renders the remaining sections (UnifiedHeaderSection, ChanceOfDrinkingCard, CycleWindowCard, SoberDaysSection, StatusIndicatorsSection) without layout issues."
+        "The sign-in page visibly shows the app name \"BRUTAL\" as text (not only as image alt text).",
+        "All existing sign-in page sections (logo area, headline/tagline, continue button, feature cards, footer) remain present and functionally unchanged aside from the minimal spacing needed to add the app name.",
+        "No changes are made to onboarding/sign-up flow pages or their UI."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/Dashboard.tsx",
+          "path": "frontend/src/pages/LoginPage.tsx",
           "operation": "modify",
-          "description": "Remove the DrinksChart import and remove the JSX block that renders the \"14-Day History\" chart card (<DrinksChart ... />) so the bar chart is no longer displayed on the Dashboard, while keeping other dashboard sections and data fetching needed by StatusIndicatorsSection intact."
+          "description": "Insert a new prominent, on-brand text heading \"BRUTAL\" near the existing logo/title area on the sign-in page, adjusting only minimal spacing/typography as needed to accommodate the new text while leaving all other existing sections and behavior unchanged."
         }
       ]
     }

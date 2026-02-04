@@ -1,33 +1,34 @@
 {
   "kind": "build_request",
-  "title": "Remove drinks-per-day chart from Dashboard",
+  "title": "Add app name “BRUTAL” to the sign-in page",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-5",
-      "text": "Remove the 14-day drinks-per-day graph from the dashboard UI so the bar chart is no longer rendered on the Dashboard page.",
+      "text": "Update the sign-in page to display the app name text \"BRUTAL\" in a prominent, on-brand way (e.g., as a heading near the existing logo/title), without altering or re-laying out any other existing sign-in page content beyond what is necessary to insert the name.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-5"
+          "msg-4"
         ],
         "quotes": [
-          "ok, now we need to remove the graph showing number-of-drinks-per-day from the dashboard"
+          "can we add the app name on the sign in page? Evertyhing else is fine, do not mess other thing on the sing up page just add the name"
         ]
       },
       "acceptanceCriteria": [
-        "Dashboard no longer renders the <DrinksChart /> section (the \"14-Day History\" card is not visible).",
-        "Dashboard still loads and renders the remaining sections (UnifiedHeaderSection, ChanceOfDrinkingCard, CycleWindowCard, SoberDaysSection, StatusIndicatorsSection) without layout issues."
+        "The sign-in page visibly shows the app name \"BRUTAL\" as text (not only as image alt text).",
+        "All existing sign-in page sections (logo area, headline/tagline, continue button, feature cards, footer) remain present and functionally unchanged aside from the minimal spacing needed to add the app name.",
+        "No changes are made to onboarding/sign-up flow pages or their UI."
       ]
     }
   ],
   "constraints": [
-    "Do not modify files under frontend/src/components/ui (read-only).",
-    "Keep the backend unchanged; remove only the dashboard graph UI."
+    "Do not edit files under frontend/src/components/ui (compose existing UI components only).",
+    "Do not modify any onboarding/sign-up page content; only add the app name to the sign-in page."
   ],
   "nonGoals": [
-    "Do not delete or refactor backend endpoints that provide 14-day history data.",
-    "Do not change other dashboard widgets or the daily check-in flow behavior."
+    "Redesigning the sign-in page layout or changing existing copy besides inserting the app name",
+    "Backend changes"
   ],
   "imageRequirements": {
     "required": [],
