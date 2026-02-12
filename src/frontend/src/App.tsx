@@ -1,21 +1,23 @@
 import { useInternetIdentity } from './hooks/useInternetIdentity';
-import { useCheckOnboardingAndCheckInStatus } from './hooks/useQueries';
+import { useCheckOnboardingAndCheckInStatus, useGetCallerUserProfile, useSaveCallerUserProfile } from './hooks/useQueries';
 import { useActor } from './hooks/useActor';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import OnboardingFlow from './components/OnboardingFlow';
+import FullScreenLoading from './components/FullScreenLoading';
+import FullScreenStatusError from './components/FullScreenStatusError';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from 'next-themes';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { WifiOff } from 'lucide-react';
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
+import { identifyUser, trackEvent, trackPageView, getInitialSyncDedupeKey } from './utils/usergeek';
 
 export default function App() {
   const { identity, isInitializing } = useInternetIdentity();
   const { actor, isFetching: actorFetching } = useActor();
   const [showLogin, setShowLogin] = useState(false);
-  const [statusTimeout, setStatusTimeout] = useState(false);
   const [connectionRetries, setConnectionRetries] = useState(0);
 
   const isAuthenticated = !!identity;
@@ -26,8 +28,99 @@ export default function App() {
     data: status, 
     isLoading: statusLoading, 
     isFetched: statusFetched,
-    error: statusError 
+    error: statusError,
+    refetch: refetchStatus
   } = useCheckOnboardingAndCheckInStatus();
+
+  // User profile query
+  const {
+    data: userProfile,
+    isLoading: profileLoading,
+    isFetched: profileFetched,
+  } = useGetCallerUserProfile();
+
+  // Save profile mutation
+  const { mutate: saveProfile } = useSaveCallerUserProfile();
+
+  // Track identification and initial sync
+  const identifiedRef = useRef(false);
+  const initialSyncAttemptedRef = useRef(false);
+
+  // Identify user after authentication and profile load
+  useEffect(() => {
+    if (!isAuthenticated || !identity || identifiedRef.current) return;
+    if (!actorInitialized || profileLoading || !profileFetched) return;
+
+    const userId = identity.getPrincipal().toString();
+
+    // Identify user with profile properties
+    const profileProperties: Record<string, any> = {};
+    if (userProfile?.onboardingAnswers) {
+      const answers = userProfile.onboardingAnswers;
+      if (answers.ageRange) profileProperties.ageRange = answers.ageRange;
+      if (answers.drinksPerWeek) profileProperties.drinksPerWeek = answers.drinksPerWeek;
+      if (answers.motivation) profileProperties.motivation = answers.motivation;
+      if (answers.secondarySubstance) profileProperties.secondarySubstance = answers.secondarySubstance;
+      if (answers.sobrietyDuration) profileProperties.sobrietyGoal = answers.sobrietyDuration;
+      if (answers.timeZone) profileProperties.timezone = answers.timeZone;
+    }
+
+    identifyUser(userId, profileProperties);
+    identifiedRef.current = true;
+  }, [isAuthenticated, identity, actorInitialized, profileLoading, profileFetched, userProfile]);
+
+  // Handle initial sync for returning users
+  useEffect(() => {
+    if (!isAuthenticated || !identity || initialSyncAttemptedRef.current) return;
+    if (!actorInitialized || profileLoading || !profileFetched || !userProfile) return;
+
+    const userId = identity.getPrincipal().toString();
+
+    // Check if user has completed onboarding and initial sync not yet done
+    if (userProfile.hasCompletedOnboarding && !userProfile.initialSyncCompleted) {
+      const dedupeKey = getInitialSyncDedupeKey(userId);
+
+      // Fire initial sync event
+      trackEvent('Initial Sync', {
+        hasOnboarding: true,
+        hasStreak: userProfile.aggregatedEntries && userProfile.aggregatedEntries.length > 0,
+      }, dedupeKey);
+
+      // Update profile to mark initial sync as completed
+      const updatedProfile = {
+        ...userProfile,
+        initialSyncCompleted: true,
+      };
+
+      saveProfile(updatedProfile, {
+        onSuccess: () => {
+          console.log('Initial sync flag persisted successfully');
+        },
+        onError: (error) => {
+          console.error('Failed to persist initial sync flag:', error);
+        },
+      });
+
+      initialSyncAttemptedRef.current = true;
+    } else {
+      // No initial sync needed
+      initialSyncAttemptedRef.current = true;
+    }
+  }, [isAuthenticated, identity, actorInitialized, profileLoading, profileFetched, userProfile, saveProfile]);
+
+  // Track page view for onboarding
+  useEffect(() => {
+    if (isAuthenticated && status?.needsOnboarding) {
+      trackPageView('Onboarding', '/onboarding');
+    }
+  }, [isAuthenticated, status?.needsOnboarding]);
+
+  // Track page view for dashboard
+  useEffect(() => {
+    if (isAuthenticated && status && !status.needsOnboarding) {
+      trackPageView('Dashboard', '/dashboard');
+    }
+  }, [isAuthenticated, status]);
 
   // Fallback timeout: show login after 3 seconds max, even if still initializing
   useEffect(() => {
@@ -47,26 +140,6 @@ export default function App() {
     }
   }, [isInitializing, isAuthenticated]);
 
-  // Status loading timeout: proceed after 3 seconds even if status query hasn't resolved
-  useEffect(() => {
-    if (!isAuthenticated || !statusLoading) return;
-
-    const timeout = setTimeout(() => {
-      setStatusTimeout(true);
-    }, 3000);
-
-    return () => clearTimeout(timeout);
-  }, [isAuthenticated, statusLoading]);
-
-  // Handle status fetch errors
-  useEffect(() => {
-    if (statusError) {
-      console.error('Status fetch error:', statusError);
-      toast.error('Failed to load status. Please try refreshing.');
-      setStatusTimeout(true);
-    }
-  }, [statusError]);
-
   // Monitor actor connection attempts
   useEffect(() => {
     if (isAuthenticated && !actor && !actorFetching) {
@@ -85,12 +158,7 @@ export default function App() {
       return (
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
           <GlobalErrorBoundary>
-            <div className="min-h-screen bg-background flex items-center justify-center">
-              <div className="text-center">
-                <div className="mb-4 h-12 w-12 animate-spin rounded-sm border-4 border-primary border-t-transparent mx-auto"></div>
-                <p className="text-muted-foreground font-bold uppercase tracking-wider">Loading...</p>
-              </div>
-            </div>
+            <FullScreenLoading />
           </GlobalErrorBoundary>
           <Toaster />
         </ThemeProvider>
@@ -157,28 +225,34 @@ export default function App() {
     );
   }
 
-  // After actor initialization, check status with timeout fail-safe
-  const shouldShowLoading = !statusFetched && statusLoading && !statusTimeout;
-
-  if (shouldShowLoading) {
+  // After actor initialization, wait for status to resolve
+  // Show loading spinner while status is loading (no timeout fallback)
+  if (!statusFetched || statusLoading) {
     return (
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         <GlobalErrorBoundary>
-          <div className="min-h-screen bg-background flex items-center justify-center">
-            <div className="text-center">
-              <div className="mb-4 h-12 w-12 animate-spin rounded-sm border-4 border-primary border-t-transparent mx-auto"></div>
-              <p className="text-muted-foreground font-bold uppercase tracking-wider">Loading...</p>
-            </div>
-          </div>
+          <FullScreenLoading />
         </GlobalErrorBoundary>
         <Toaster />
       </ThemeProvider>
     );
   }
 
-  // Determine flow based on status
-  // If timeout occurred or error, assume needs onboarding
-  const needsOnboarding = status?.needsOnboarding ?? true;
+  // If status query errored, show error UI with retry
+  if (statusError) {
+    return (
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+        <GlobalErrorBoundary>
+          <FullScreenStatusError onRetry={() => refetchStatus()} />
+        </GlobalErrorBoundary>
+        <Toaster />
+      </ThemeProvider>
+    );
+  }
+
+  // At this point, status is successfully fetched
+  // Determine flow based on status - no fallback, we have the real value
+  const needsOnboarding = status?.needsOnboarding ?? false;
 
   if (needsOnboarding) {
     return (

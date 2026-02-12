@@ -1,227 +1,108 @@
 import { useState } from 'react';
-import { useSaveCallerUserProfile } from '../hooks/useQueries';
+import { useCompleteOnboarding } from '../hooks/useQueries';
 import { useActor } from '../hooks/useActor';
-import { useQueryClient } from '@tanstack/react-query';
+import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Skull, CheckCircle2, AlertCircle, Wifi, WifiOff } from 'lucide-react';
-import type { PersistentUserProfileView } from '../backend';
-
-const questions = [
-  {
-    id: 'ageRange',
-    title: 'Are you old?',
-    description: 'Age matters. Different battles at different stages.',
-    options: ['18–25', '25–35', '35–45', '45+'],
-  },
-  {
-    id: 'drinksPerWeek',
-    title: 'How many drinks per week do you have?',
-    description: 'Honesty required. This is your baseline.',
-    options: ['Less than 5', '5–10', 'More than 10', 'I just drink, don\'t count...'],
-  },
-  {
-    id: 'motivation',
-    title: 'What drives you / why are you here?',
-    description: 'Your "why" keeps you going when it gets hard.',
-    options: ['Family', 'Money', 'Sex', 'Health', 'Sport'],
-  },
-  {
-    id: 'secondarySubstance',
-    title: 'Your favorite drug next to alcohol?',
-    description: 'We all have vices. What\'s yours?',
-    options: ['Weed', 'Cocaine', 'Porn', 'Cigarettes', 'Games'],
-  },
-  {
-    id: 'sobrietyDuration',
-    title: 'How long can you go without alcohol?',
-    description: 'Be realistic. This sets your first target.',
-    options: ['2 days', '5 days', '1 week', '2 weeks', '1 month'],
-  },
-];
-
-// Detect user's time zone using browser API
-function detectTimeZone(): string {
-  try {
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return timeZone || 'UTC';
-  } catch (error) {
-    console.error('Failed to detect time zone:', error);
-    return 'UTC';
-  }
-}
+import { CheckCircle2 } from 'lucide-react';
+import type { OnboardingAnswers } from '../backend';
+import { trackEvent, getOnboardingDedupeKey } from '../utils/usergeek';
+import { STREAK_TARGET_OPTIONS } from '../utils/streakTargets';
 
 export default function OnboardingFlow() {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [answers, setAnswers] = useState({
+  const { identity } = useInternetIdentity();
+  const { actor, isFetching: actorFetching } = useActor();
+  const { mutate: completeOnboarding, isPending: isSaving } = useCompleteOnboarding();
+
+  const [step, setStep] = useState(1);
+  const [formData, setFormData] = useState({
     ageRange: '',
     drinksPerWeek: '',
     motivation: '',
     secondarySubstance: '',
     sobrietyDuration: '',
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
   });
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const { actor, isFetching: actorFetching } = useActor();
   const actorInitialized = !!actor && !actorFetching;
-  
-  const saveProfile = useSaveCallerUserProfile();
-  const queryClient = useQueryClient();
 
-  const currentQuestion = questions[currentStep];
-  const progress = ((currentStep + 1) / questions.length) * 100;
-
-  const handleSelectOption = (option: string) => {
-    const newAnswers = { ...answers, [currentQuestion.id]: option };
-    setAnswers(newAnswers);
-
-    // Auto-advance after selection
-    setTimeout(() => {
-      if (currentStep < questions.length - 1) {
-        setCurrentStep(currentStep + 1);
-      } else {
-        handleSubmit(newAnswers);
-      }
-    }, 300);
+  const handleNext = () => {
+    if (step === 1 && !formData.ageRange) {
+      toast.error('Please select an option');
+      return;
+    }
+    if (step === 2 && !formData.drinksPerWeek) {
+      toast.error('Please select an option');
+      return;
+    }
+    if (step === 3 && !formData.motivation) {
+      toast.error('Please select an option');
+      return;
+    }
+    if (step === 4 && !formData.secondarySubstance) {
+      toast.error('Please select an option');
+      return;
+    }
+    if (step === 5 && !formData.sobrietyDuration) {
+      toast.error('Please select an option');
+      return;
+    }
+    setStep(step + 1);
   };
 
   const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
+    setStep(step - 1);
   };
 
-  const handleSubmit = async (finalAnswers: typeof answers) => {
-    // Check if backend is ready
+  const handleSubmit = () => {
     if (!actorInitialized) {
-      setSaveError('Backend connection not ready. Please wait a moment and try again.');
-      toast.error('Connection not ready. Please retry.');
+      toast.error('Backend connection not ready. Please wait a moment and try again.');
       return;
     }
 
-    setSaveError(null);
-    
-    try {
-      // Detect user's time zone
-      const timeZone = detectTimeZone();
-      console.log('Detected time zone:', timeZone);
+    const answers: OnboardingAnswers = formData;
 
-      // Create PersistentUserProfileView with correct structure matching backend including timeZone
-      const userProfile: PersistentUserProfileView = {
-        onboardingAnswers: {
-          ageRange: finalAnswers.ageRange,
-          drinksPerWeek: finalAnswers.drinksPerWeek,
-          motivation: finalAnswers.motivation,
-          secondarySubstance: finalAnswers.secondarySubstance,
-          sobrietyDuration: finalAnswers.sobrietyDuration,
-          timeZone: timeZone,
-        },
-        hasCompletedOnboarding: true,
-        lastCheckInDate: undefined,
-        currentDayCheckInStatus: undefined,
-        aggregatedEntries: [],
-        repeatCheckIns: [],
-        currentDayTotalDrinks: BigInt(0),
-        lastBrutalFriendFeedback: '',
-        motivationButtonClicks: BigInt(0),
-        lastMotivationClickDay: BigInt(0),
-      };
+    completeOnboarding(answers, {
+      onSuccess: () => {
+        toast.success('Profile saved! Welcome to BRUTAL.');
 
-      console.log('Saving user profile:', userProfile);
+        // Track onboarding completion event
+        if (identity) {
+          const userId = identity.getPrincipal().toString();
+          const dedupeKey = getOnboardingDedupeKey(userId);
 
-      // Save the profile with proper async/await handling
-      await saveProfile.mutateAsync(userProfile);
-
-      console.log('Profile saved successfully');
-
-      // Show success state
-      setSaveSuccess(true);
-      toast.success('Setup complete. Now the real work begins.');
-
-      // Invalidate status query to trigger app flow update
-      await queryClient.invalidateQueries({ queryKey: ['onboardingCheckInStatus'] });
-
-      // The App component will automatically detect the updated status
-      // and transition to the Daily Check-In dialog, then Dashboard
-    } catch (error: any) {
-      const errorMessage = error?.message || 'Unknown error occurred';
-      console.error('Onboarding save error:', error);
-      setSaveError(errorMessage);
-      toast.error('Save failed. Check your connection and try again.');
-    }
+          trackEvent('Onboarding Completed', {
+            ageRange: formData.ageRange,
+            drinksPerWeek: formData.drinksPerWeek,
+            motivation: formData.motivation,
+            secondarySubstance: formData.secondarySubstance,
+            sobrietyGoal: formData.sobrietyDuration,
+            timezone: formData.timeZone,
+          }, dedupeKey);
+        }
+      },
+      onError: (error: any) => {
+        console.error('Failed to complete onboarding:', error);
+        toast.error('Failed to save profile. Please try again.');
+      },
+    });
   };
 
-  const handleRetry = () => {
-    setSaveError(null);
-    handleSubmit(answers);
+  const selectOption = (field: keyof typeof formData, value: string) => {
+    setFormData({ ...formData, [field]: value });
   };
 
-  const selectedAnswer = answers[currentQuestion.id as keyof typeof answers];
-
-  // Show connection status warning if actor is not ready
-  const showConnectionWarning = !actorInitialized;
-
-  // Show success screen after save
-  if (saveSuccess) {
+  if (!actorInitialized) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-md text-center animate-quick-fade">
-          <div className="inline-flex items-center justify-center mb-6 w-24 h-24 border-2 border-primary bg-primary/10">
-            <CheckCircle2 className="w-12 h-12 text-primary" />
-          </div>
-          <h1 className="text-3xl font-black uppercase tracking-tight neon-glow-pink mb-4">
-            PROFILE SAVED
-          </h1>
-          <p className="text-muted-foreground uppercase tracking-wider text-sm mb-6">
-            Transitioning to your dashboard...
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 h-12 w-12 animate-spin rounded-sm border-4 border-primary border-t-transparent mx-auto"></div>
+          <p className="text-muted-foreground font-bold uppercase tracking-wider mb-2">
+            Connecting to backend...
           </p>
-          <div className="h-2 w-full bg-muted overflow-hidden">
-            <div className="h-full bg-primary animate-pulse"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error screen if save failed
-  if (saveError) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-md text-center animate-quick-fade">
-          <div className="inline-flex items-center justify-center mb-6 w-24 h-24 border-2 border-destructive bg-destructive/10">
-            <AlertCircle className="w-12 h-12 text-destructive" />
-          </div>
-          <h1 className="text-3xl font-black uppercase tracking-tight text-destructive mb-4">
-            SAVE FAILED
-          </h1>
-          <p className="text-muted-foreground uppercase tracking-wider text-sm mb-2">
-            Something went wrong
+          <p className="text-xs text-muted-foreground">
+            Establishing secure connection
           </p>
-          <p className="text-xs text-muted-foreground font-mono mb-6 px-4 py-2 bg-muted/50 border border-border break-words">
-            {saveError}
-          </p>
-          <div className="flex flex-col gap-3">
-            <Button
-              onClick={handleRetry}
-              disabled={saveProfile.isPending || !actorInitialized}
-              className="w-full font-bold uppercase tracking-wider border-2"
-            >
-              {saveProfile.isPending ? 'RETRYING...' : !actorInitialized ? 'CONNECTING...' : 'RETRY'}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSaveError(null);
-                setCurrentStep(questions.length - 1);
-              }}
-              className="w-full font-bold uppercase tracking-wider border-2"
-            >
-              BACK TO QUESTIONS
-            </Button>
-          </div>
         </div>
       </div>
     );
@@ -229,114 +110,161 @@ export default function OnboardingFlow() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl animate-quick-fade">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center mb-4">
-            <Skull className="w-16 h-16 text-primary" />
-          </div>
-          <h1 className="text-4xl font-black uppercase tracking-tight neon-glow-pink mb-2">
-            SETUP
-          </h1>
-          <p className="text-muted-foreground uppercase tracking-wider text-sm">
-            Answer honestly. This is for you.
-          </p>
-        </div>
-
-        {/* Connection Status Warning */}
-        {showConnectionWarning && (
-          <div className="mb-6 p-4 border-2 border-yellow-500/50 bg-yellow-500/10 flex items-center gap-3">
-            <WifiOff className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-            <div className="text-left">
-              <p className="text-sm font-bold uppercase tracking-wider text-yellow-500">
-                Connecting to backend...
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Please wait while we establish a secure connection.
-              </p>
+      <div className="max-w-2xl w-full">
+        <div className="brutal-card border-2 border-border p-8">
+          <div className="mb-8">
+            <h1 className="text-3xl font-black uppercase tracking-tight text-primary neon-glow-pink mb-2">
+              BRUTAL ONBOARDING
+            </h1>
+            <p className="text-sm text-muted-foreground uppercase tracking-wider">
+              Step {step} of 5
+            </p>
+            <div className="mt-4 h-2 bg-muted rounded-sm overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-300"
+                style={{ width: `${(step / 5) * 100}%` }}
+              />
             </div>
           </div>
-        )}
 
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex justify-between text-xs text-muted-foreground mb-2 font-bold uppercase tracking-wider">
-            <span>Question {currentStep + 1}/{questions.length}</span>
-            <span>{Math.round(progress)}%</span>
-          </div>
-          <Progress value={progress} className="h-2 bg-muted" />
-        </div>
-
-        {/* Question Card */}
-        <Card className="brutal-card border-2">
-          <CardHeader>
-            <CardTitle className="text-2xl font-black uppercase tracking-tight neon-glow-pink">
-              {currentQuestion.title}
-            </CardTitle>
-            <CardDescription className="text-xs uppercase tracking-wider">
-              {currentQuestion.description}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Answer Options */}
-            <div className="grid gap-3">
-              {currentQuestion.options.map((option) => (
-                <Button
-                  key={option}
-                  onClick={() => handleSelectOption(option)}
-                  disabled={saveProfile.isPending || !actorInitialized}
-                  variant={selectedAnswer === option ? 'default' : 'outline'}
-                  className={`
-                    h-auto py-4 px-6 text-left justify-start font-bold uppercase tracking-wider border-2
-                    transition-all duration-200
-                    ${selectedAnswer === option 
-                      ? 'bg-primary text-primary-foreground border-primary neon-glow-pink scale-[1.02]' 
-                      : 'hover:border-primary hover:bg-primary/10'
-                    }
-                  `}
-                >
-                  <span className="text-base">{option}</span>
-                </Button>
-              ))}
+          {step === 1 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-black uppercase tracking-tight text-foreground mb-6">
+                ARE YOU OLD?
+              </h2>
+              <div className="grid grid-cols-1 gap-3">
+                {['18-25', '25-35', '35-45', '45+'].map((option) => (
+                  <Button
+                    key={option}
+                    onClick={() => selectOption('ageRange', option)}
+                    variant={formData.ageRange === option ? 'default' : 'outline'}
+                    className="h-14 text-lg font-bold uppercase tracking-wider justify-start"
+                  >
+                    {option}
+                  </Button>
+                ))}
+              </div>
             </div>
+          )}
 
-            {/* Navigation Buttons */}
-            {currentStep > 0 && (
-              <div className="flex gap-3 pt-4 border-t-2 border-border">
-                <Button
-                  variant="outline"
-                  onClick={handleBack}
-                  disabled={saveProfile.isPending}
-                  className="flex-1 font-bold uppercase tracking-wider border-2"
-                >
-                  Back
-                </Button>
+          {step === 2 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-black uppercase tracking-tight text-foreground mb-6">
+                HOW MANY DRINK PER WEEK DO YOU HAVE?
+              </h2>
+              <div className="grid grid-cols-1 gap-3">
+                {['less than 5', '5-10', 'more than 10', "I just drink, don't count"].map((option) => (
+                  <Button
+                    key={option}
+                    onClick={() => selectOption('drinksPerWeek', option)}
+                    variant={formData.drinksPerWeek === option ? 'default' : 'outline'}
+                    className="h-14 text-lg font-bold uppercase tracking-wider justify-start"
+                  >
+                    {option}
+                  </Button>
+                ))}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Saving Indicator */}
-            {saveProfile.isPending && (
-              <div className="flex items-center justify-center gap-2 text-primary pt-4">
-                <div className="h-4 w-4 animate-spin rounded-sm border-2 border-primary border-t-transparent"></div>
-                <span className="text-sm font-bold uppercase tracking-wider">SAVING...</span>
+          {step === 3 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-black uppercase tracking-tight text-foreground mb-6">
+                WHAT DRIVES YOU?
+              </h2>
+              <div className="grid grid-cols-1 gap-3">
+                {['family', 'money', 'sex', 'health'].map((option) => (
+                  <Button
+                    key={option}
+                    onClick={() => selectOption('motivation', option)}
+                    variant={formData.motivation === option ? 'default' : 'outline'}
+                    className="h-14 text-lg font-bold uppercase tracking-wider justify-start"
+                  >
+                    {option}
+                  </Button>
+                ))}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Connection Status */}
-            {actorInitialized && !saveProfile.isPending && (
-              <div className="flex items-center justify-center gap-2 text-green-500 pt-2">
-                <Wifi className="w-4 h-4" />
-                <span className="text-xs font-bold uppercase tracking-wider">Connected</span>
+          {step === 4 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-black uppercase tracking-tight text-foreground mb-6">
+                YOUR FAVORITE DRUG NEXT TO ALCOHOL?
+              </h2>
+              <div className="grid grid-cols-1 gap-3">
+                {['weed', 'cocaine', 'porn', 'video games'].map((option) => (
+                  <Button
+                    key={option}
+                    onClick={() => selectOption('secondarySubstance', option)}
+                    variant={formData.secondarySubstance === option ? 'default' : 'outline'}
+                    className="h-14 text-lg font-bold uppercase tracking-wider justify-start"
+                  >
+                    {option}
+                  </Button>
+                ))}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          )}
 
-        {/* Footer Note */}
-        <div className="text-center mt-6">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
-            &gt; Select an option to continue
-          </p>
+          {step === 5 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-black uppercase tracking-tight text-foreground mb-6">
+                HOW LONG CAN YOU GO WITHOUT ALCOHOL?
+              </h2>
+              <div className="grid grid-cols-1 gap-3">
+                {STREAK_TARGET_OPTIONS.map((option) => (
+                  <Button
+                    key={option}
+                    onClick={() => selectOption('sobrietyDuration', option)}
+                    variant={formData.sobrietyDuration === option ? 'default' : 'outline'}
+                    className="h-14 text-lg font-bold uppercase tracking-wider justify-start"
+                  >
+                    {option}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-4 mt-8">
+            {step > 1 && (
+              <Button
+                onClick={handleBack}
+                variant="outline"
+                className="flex-1 h-12 font-bold uppercase tracking-wider"
+                disabled={isSaving}
+              >
+                Back
+              </Button>
+            )}
+            {step < 5 ? (
+              <Button
+                onClick={handleNext}
+                className="flex-1 h-12 font-bold uppercase tracking-wider"
+              >
+                Next
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSubmit}
+                disabled={isSaving || !actorInitialized}
+                className="flex-1 h-12 font-bold uppercase tracking-wider"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-sm border-2 border-primary-foreground border-t-transparent" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="mr-2 h-5 w-5" />
+                    Complete
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>

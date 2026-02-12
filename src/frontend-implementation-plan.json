@@ -1,21 +1,117 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Usergeek tracking snippet integration (frontend-only)",
+  "title": "Full-screen streak achievement flow with forced next-target selection and fade transitions",
   "requirements": [
     {
-      "id": "REQ-1",
-      "summary": "Integrate the standard Usergeek tracking snippet into the HTML entry point and configure it with the provided API key.",
+      "id": "REQ-2",
+      "summary": "Trigger the full-screen streak-achievement experience when current streak meets/exceeds target and the per-target achievement flag is false, including immediate post-check-in and on next login for already-eligible users.",
       "acceptanceCriteria": [
-        "The Usergeek tracking snippet is added to the frontend entry file `frontend/index.html` (e.g., inside `<head>` or immediately before `</body>`), without breaking existing metadata or the `/src/main.tsx` module script tag.",
-        "The snippet is configured to use API key `014402022A34A8626A6C124A58B6197F` exactly as provided.",
-        "After building and running the app, the browser loads the Usergeek tracking script without console errors attributable to the integration."
+        "After a successful daily check-in, if updated metrics indicate the user has reached/exceeded their current target and `achievementShownForThisTarget` is false, the achievement overlay opens without requiring a page refresh.",
+        "If the user refreshes or reopens the app while still eligible (flag still false), the achievement overlay appears again until they complete the flow (pick a new target).",
+        "If `achievementShownForThisTarget` is true for the current target, the achievement overlay never appears."
       ],
       "file_operations": [
         {
-          "path": "frontend/index.html",
+          "path": "frontend/src/hooks/useQueries.ts",
           "operation": "modify",
-          "description": "Insert the official Usergeek tracking snippet into the HTML document (preferably within <head> or immediately before </body>) and configure it to use API key `014402022A34A8626A6C124A58B6197F`. Ensure existing metadata/social tags remain intact and do not alter or remove the existing `<script type=\"module\" src=\"/src/main.tsx\"></script>`."
+          "description": "Add React Query mutations needed by the achievement flow (use the backend capabilities already exposed in the actor type), including a mutation for updating the streak target and any achievement-related flag action. Verify the component's usage instructions before implementing."
+        },
+        {
+          "path": "frontend/src/pages/Dashboard.tsx",
+          "operation": "modify",
+          "description": "Wire eligibility detection and immediate post-check-in triggering: (1) on initial load/returning user, open the overlay when `currentStreak >= streakTarget` and `achievementShownForThisTarget` is false; (2) after `submitCheckIn` success, open the overlay immediately when the result indicates the target was achieved/exceeded and the profile flag is still false; ensure the overlay blocks dashboard interaction until completion. Verify the component's usage instructions before implementing."
+        },
+        {
+          "path": "frontend/src/components/StreakAchievementOverlay.tsx",
+          "operation": "create",
+          "description": "Create a full-screen overlay component that can be controlled by the dashboard (open/close + callbacks) and supports a two-panel flow; panel rendering will be completed per REQ-3/REQ-4. Use existing shadcn-ui primitives where appropriate (e.g., Button) without modifying any files under `frontend/src/components/ui`. Verify the component's usage instructions before implementing."
+        }
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "summary": "Build the first full-screen achievement panel UI in a dark brutal BRUTAL aesthetic with grain texture, neon pink accents, pulsing glow behind the streak number, and a single forced-action button labeled exactly “SHUT UP!” (no close icon).",
+      "acceptanceCriteria": [
+        "The overlay visually blocks interaction with the dashboard and cannot be dismissed via a close icon.",
+        "The main action button text is exactly \"SHUT UP!\".",
+        "The message copy is English, short (≤ 3 lines), with dark-humor tone and no emojis.",
+        "The background includes a subtle grain effect and the streak number has a slow pulse/glow animation.",
+        "UI matches the app’s existing brutal styling conventions (Tailwind + existing theme utilities)."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/StreakAchievementOverlay.tsx",
+          "operation": "modify",
+          "description": "Implement panel #1 visuals: fixed full-screen black overlay, subtle grain texture layer, neon pink glow accent, and a slow pulse/glow animation behind a large streak number + label (e.g., \"14 DAYS\"); include a short dark-humor English message (≤3 lines) and a single primary action button labeled exactly \"SHUT UP!\"; omit any close icon and prevent click-outside dismissal. Compose existing shadcn-ui Button (do not edit `frontend/src/components/ui`). Verify the component's usage instructions before implementing."
+        },
+        {
+          "path": "frontend/src/index.css",
+          "operation": "modify",
+          "description": "Add global utilities needed for the overlay’s subtle grain effect and any fade helpers (keeping within existing Tailwind layer patterns), and ensure the animation utilities align with the current brutal theme conventions. Verify the component's usage instructions before implementing."
+        },
+        {
+          "path": "frontend/tailwind.config.js",
+          "operation": "modify",
+          "description": "Extend Tailwind animations/keyframes only as needed for the achievement overlay (e.g., a slow glow/pulse backing effect and/or a fade transition) while reusing existing `neon-pulse` where possible. Verify the component's usage instructions before implementing."
+        }
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "summary": "After “SHUT UP!”, transition to a second full-screen panel that forces the user to pick a new streak target using the exact onboarding step #5 option strings.",
+      "acceptanceCriteria": [
+        "After clicking \"SHUT UP!\", the UI transitions to the target-selection panel without returning to the dashboard.",
+        "Target options exactly match onboarding step #5 strings.",
+        "Without selecting a new target, a page refresh causes the achievement flow to appear again (still blocking the dashboard)."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/StreakAchievementOverlay.tsx",
+          "operation": "modify",
+          "description": "Implement panel #2: title exactly \"Do you want to try again?\" with calm/direct slightly brutal tone, and render selectable target options exactly matching onboarding step #5 strings: \"2 days\", \"5 days\", \"1 week\", \"2 weeks\", \"1 month\"; require a selection (no close/dismiss); add an internal state transition from panel #1 to panel #2 when the user presses \"SHUT UP!\". Compose existing shadcn-ui Button (do not edit `frontend/src/components/ui`). Verify the component's usage instructions before implementing."
+        },
+        {
+          "path": "frontend/src/components/OnboardingFlow.tsx",
+          "operation": "modify",
+          "description": "Refactor the onboarding step #5 option strings into a shared exported constant (no behavior changes) so the achievement flow reuses the exact same strings without duplication. Verify the component's usage instructions before implementing."
+        },
+        {
+          "path": "frontend/src/utils/streakTargets.ts",
+          "operation": "create",
+          "description": "Add a small shared utility that maps the shared target option strings (\"2 days\", \"5 days\", \"1 week\", \"2 weeks\", \"1 month\") to the numeric day values used by the app when persisting `streakTarget`, ensuring consistency between onboarding and the achievement flow. Verify the component's usage instructions before implementing."
+        }
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "summary": "Persist the newly selected streak target, reset the per-target achievement flag for the newly selected target, and close the full-screen flow with a fade transition back to the dashboard.",
+      "acceptanceCriteria": [
+        "Selecting a new target persists the new target in the same place the app currently reads it from (the onboarding-configured target).",
+        "After selection, `achievementShownForThisTarget` is persisted as `false` for the newly selected target.",
+        "The overlay closes with a visible fade transition and the dashboard is usable again.",
+        "The existing streak reset mechanism (currently resetting when the user drank) is extended so it also resets when the user achieves the target, without breaking existing check-in flows."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add/adjust mutations and query invalidations so selecting a new target persists via backend capability, updates the cached user profile read model, and refetches progress/profile/status as needed after target selection; ensure the `achievementShownForThisTarget` value is handled in the frontend read model and re-checked after persistence. Verify the component's usage instructions before implementing."
+        },
+        {
+          "path": "frontend/src/components/StreakAchievementOverlay.tsx",
+          "operation": "modify",
+          "description": "On target selection, invoke the provided callback to persist the chosen target and required flag reset; implement a visible fade-out transition before unmounting/closing and returning control to the dashboard; ensure the overlay remains blocking until persistence succeeds (or show an inline error state while still blocking). Verify the component's usage instructions before implementing."
+        },
+        {
+          "path": "frontend/src/pages/Dashboard.tsx",
+          "operation": "modify",
+          "description": "Wire the overlay’s target चयन callback to the new mutation(s) (persist target + required flag reset for new target), then close the overlay with fade and restore dashboard usability; ensure post-selection refetch/invalidation keeps dashboard metrics consistent. Also incorporate the achieved-target signal from check-in results into the flow so that achieving a target is treated as a reset moment from the UI perspective (without altering the existing check-in dialog flows beyond necessary wiring). Verify the component's usage instructions before implementing."
+        },
+        {
+          "path": "frontend/src/index.css",
+          "operation": "modify",
+          "description": "Add any required fade transition utility classes for the overlay open/close behavior (keeping consistent with existing `animate-quick-fade` patterns and brutal theme utilities). Verify the component's usage instructions before implementing."
         }
       ]
     }

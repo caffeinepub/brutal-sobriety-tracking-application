@@ -1,34 +1,114 @@
 {
   "kind": "build_request",
-  "title": "Integrate Usergeek tracking snippet into frontend with provided API key",
+  "title": "Add full-screen streak achievement flow (shown once per target) with forced next-target selection and fade transitions",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Add the Usergeek tracking snippet to the frontend HTML entry point and configure it with API key `014402022A34A8626A6C124A58B6197F`.",
-      "target": "frontend",
+      "text": "Add a persistent user-profile flag `achievementShownForThisTarget: boolean` and expose it through all relevant backend profile APIs (read + save) so the frontend can reliably determine whether the streak-achievement experience has already been completed for the current streak target.",
+      "target": "backend",
       "source": {
         "messageIds": [
-          "msg-7"
+          "msg-1"
         ],
         "quotes": [
-          "Please add the Usergeek tracking snippet to my frontend in the correct file and configure it with my API key = 014402022A34A8626A6C124A58B6197F"
+          "Store a flag in user profile:\nachievementShownForThisTarget: boolean\nReset this flag only after user selects a new streak target."
         ]
       },
       "acceptanceCriteria": [
-        "The Usergeek tracking snippet is added to the frontend entry file `frontend/index.html` (e.g., inside `<head>` or immediately before `</body>`), without breaking existing metadata or the `/src/main.tsx` module script tag.",
-        "The snippet is configured to use API key `014402022A34A8626A6C124A58B6197F` exactly as provided.",
-        "After building and running the app, the browser loads the Usergeek tracking script without console errors attributable to the integration."
+        "Backend `PersistentUserProfileView` includes `achievementShownForThisTarget` and it round-trips correctly via `getCallerUserProfile` and `saveCallerUserProfile`.",
+        "Existing onboarding, check-in, dashboard, analytics, and friend-feedback logic continues to function unchanged."
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "Implement the trigger logic for the streak-achievement experience so it appears full-screen only when `streakCurrent >= streakTarget` AND `achievementShownForThisTarget == false`. It must fire immediately after the daily check-in that completes/exceeds the target, and also for returning users on next login if they already exceed the target and have not seen the achievement yet.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Show the full-screen achievement only when:\nstreakCurrent >= streakTarget\nAND achievementShownForThisTarget == false",
+          "Fire immediately after the daily check-in that completes the target.",
+          "Returning users who already passed target before feature existed\n→ Show achievement once on next login if:\nstreakCurrent >= streakTarget\nAND achievementShownForThisTarget == false"
+        ]
+      },
+      "acceptanceCriteria": [
+        "After a successful daily check-in, if updated metrics indicate the user has reached/exceeded their current target and `achievementShownForThisTarget` is false, the achievement overlay opens without requiring a page refresh.",
+        "If the user refreshes or reopens the app while still eligible (flag still false), the achievement overlay appears again until they complete the flow (pick a new target).",
+        "If `achievementShownForThisTarget` is true for the current target, the achievement overlay never appears."
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Create the full-screen streak-achievement UI as a modal overlay in a dark brutal BRUTAL aesthetic: black background with subtle grain texture, neon pink glow accent, and a slow pulse/glow animation behind the large streak number. Center the content in a vertical stack: huge streak number with label (e.g., \"14 DAYS\"), a short (max 2–3 lines), dark-humor, emotionally strong message (no emojis, no positivity clichés), and a single primary button labeled exactly \"SHUT UP!\" with neon outline and subtle hover glow. Do not include any close icon; the user must press the button.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Create a full-screen modal overlay with:\nDark brutal aesthetic (matching BRUTAL branding)\nBlack background with subtle grain texture\nNeon pink glow accent\nSlow pulse or glow animation behind streak number\n...Single primary button\nSHUT UP!\n...No close icon.\nUser must press the button."
+        ]
+      },
+      "acceptanceCriteria": [
+        "The overlay visually blocks interaction with the dashboard and cannot be dismissed via a close icon.",
+        "The main action button text is exactly \"SHUT UP!\".",
+        "The message copy is English, short (≤ 3 lines), with dark-humor tone and no emojis.",
+        "The background includes a subtle grain effect and the streak number has a slow pulse/glow animation.",
+        "UI matches the app’s existing brutal styling conventions (Tailwind + existing theme utilities)."
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "text": "After the user presses \"SHUT UP!\", show a second full-screen panel that asks: Title exactly \"Do you want to try again?\" with calm, direct, slightly brutal tone (not celebratory). Present the same streak target options as onboarding step #5 (\"2 days\", \"5 days\", \"1 week\", \"2 weeks\", \"1 month\"). The user must select one option; if they dismiss via refresh or navigation, the flow must reappear until a selection is made.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Step 1 — Ask continuation question\nShow a second full-screen question panel:\nTitle:\nDo you want to try again?\n...Step 2 — Offer new streak targets\nDisplay same options as onboarding question #5:\n2 days\n5 days\n1 week\n2 weeks\n1 month",
+          "If user dismisses or refreshes, modal must reappear until selection is made."
+        ]
+      },
+      "acceptanceCriteria": [
+        "After clicking \"SHUT UP!\", the UI transitions to the target-selection panel without returning to the dashboard.",
+        "Target options exactly match onboarding step #5 strings.",
+        "Without selecting a new target, a page refresh causes the achievement flow to appear again (still blocking the dashboard)."
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "text": "When the user selects a new streak target in the second panel: update the stored streak target (the same profile field used by onboarding target selection), reset `achievementShownForThisTarget` to `false`, and close the full-screen experience with a fade transition, returning the user to the dashboard. Also update/reset the existing streak reset behavior so that, in addition to resetting when the user had a drink, it also resets when the user achieves their target (per existing streak/reset field behavior).",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Selecting an option:\nupdates streakTarget\nresets:\nstreakCurrent → 0 only if user drank today\nachievementShownForThisTarget → false\ncloses modal\nreturns user to dashboard",
+          "1. yes, it is existing field, which already resets if the user had a drink, now it will also reset if the user achieves his target, 2. we can have a fade yes"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Selecting a new target persists the new target in the same place the app currently reads it from (the onboarding-configured target).",
+        "After selection, `achievementShownForThisTarget` is persisted as `false` for the newly selected target.",
+        "The overlay closes with a visible fade transition and the dashboard is usable again.",
+        "The existing streak reset mechanism (currently resetting when the user drank) is extended so it also resets when the user achieves the target, without breaking existing check-in flows."
       ]
     }
   ],
   "constraints": [
-    "Do not modify any files under frontend/src/components/ui or other immutable paths listed in SYSTEM_CONTEXT.",
-    "Do not introduce any backend changes; integration must be frontend-only."
+    "Do not break or modify existing onboarding flow behavior, daily check-in logic, dashboard metrics, analytics tracking (Usergeek), or brutal friend feedback system beyond what is necessary to add this additive achievement experience.",
+    "Frontend files under `frontend/src/components/ui` and other `frontend.immutablePaths` must not be edited; compose them instead.",
+    "Use English for all user-facing text in the achievement flow."
   ],
   "nonGoals": [
-    "Adding new analytics events beyond the standard Usergeek snippet.",
-    "Implementing a consent banner or cookie preferences UI."
+    "Adding third-party auth providers (only Internet Identity is supported).",
+    "Adding real-time features (WebSockets/chat/push).",
+    "Redesigning existing dashboard cards or onboarding steps beyond reusing the existing target-option strings."
   ],
   "imageRequirements": {
     "required": [],

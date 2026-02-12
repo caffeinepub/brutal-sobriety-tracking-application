@@ -110,7 +110,10 @@ export interface PersistentUserProfileView {
     motivationButtonClicks: bigint;
     onboardingAnswers: OnboardingAnswers;
     lastBrutalFriendFeedback: string;
+    streakTarget: bigint;
+    initialSyncCompleted: boolean;
     repeatCheckIns: Array<RepeatCheckIn>;
+    achievementShownForThisTarget: boolean;
     currentDayCheckInStatus?: boolean;
     hasCompletedOnboarding: boolean;
     currentDayTotalDrinks: bigint;
@@ -155,6 +158,7 @@ export interface backendInterface {
         lastLoginWasSober: bigint;
         needsFollowUp: boolean;
     }>;
+    completeOnboarding(answers: OnboardingAnswers): Promise<PersistentUserProfileView>;
     getCallerUserProfile(): Promise<PersistentUserProfileView | null>;
     getCallerUserRole(): Promise<UserRole>;
     getLast14Days(): Promise<Array<AggregatedEntry>>;
@@ -175,9 +179,12 @@ export interface backendInterface {
     getUserProfile(user: Principal): Promise<PersistentUserProfileView | null>;
     getUserTimeZone(): Promise<string>;
     isCallerAdmin(): Promise<boolean>;
+    markAchievementAsShown(): Promise<void>;
     saveCallerUserProfile(profile: PersistentUserProfileView): Promise<void>;
+    setStreakTarget(newTarget: bigint): Promise<void>;
     submitCheckIn(entry: CheckInEntry): Promise<{
         date: bigint;
+        achievedStreakTarget: boolean;
         message: string;
         totalDrinks: bigint;
     }>;
@@ -237,18 +244,32 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async completeOnboarding(arg0: OnboardingAnswers): Promise<PersistentUserProfileView> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.completeOnboarding(arg0);
+                return from_candid_PersistentUserProfileView_n3(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.completeOnboarding(arg0);
+            return from_candid_PersistentUserProfileView_n3(this._uploadFile, this._downloadFile, result);
+        }
+    }
     async getCallerUserProfile(): Promise<PersistentUserProfileView | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getCallerUserProfile();
-                return from_candid_opt_n3(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n18(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCallerUserProfile();
-            return from_candid_opt_n3(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n18(this._uploadFile, this._downloadFile, result);
         }
     }
     async getCallerUserRole(): Promise<UserRole> {
@@ -269,14 +290,14 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getLast14Days();
-                return from_candid_vec_n7(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n6(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getLast14Days();
-            return from_candid_vec_n7(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n6(this._uploadFile, this._downloadFile, result);
         }
     }
     async getLatestBrutalFriendFeedback(): Promise<string> {
@@ -349,14 +370,14 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getUserProfile(arg0);
-                return from_candid_opt_n3(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n18(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getUserProfile(arg0);
-            return from_candid_opt_n3(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n18(this._uploadFile, this._downloadFile, result);
         }
     }
     async getUserTimeZone(): Promise<string> {
@@ -387,6 +408,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async markAchievementAsShown(): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.markAchievementAsShown();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.markAchievementAsShown();
+            return result;
+        }
+    }
     async saveCallerUserProfile(arg0: PersistentUserProfileView): Promise<void> {
         if (this.processError) {
             try {
@@ -401,8 +436,23 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async setStreakTarget(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.setStreakTarget(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.setStreakTarget(arg0);
+            return result;
+        }
+    }
     async submitCheckIn(arg0: CheckInEntry): Promise<{
         date: bigint;
+        achievedStreakTarget: boolean;
         message: string;
         totalDrinks: bigint;
     }> {
@@ -448,37 +498,37 @@ export class Backend implements backendInterface {
         }
     }
 }
-function from_candid_AggregatedEntry_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _AggregatedEntry): AggregatedEntry {
-    return from_candid_record_n9(_uploadFile, _downloadFile, value);
+function from_candid_AggregatedEntry_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _AggregatedEntry): AggregatedEntry {
+    return from_candid_record_n8(_uploadFile, _downloadFile, value);
 }
-function from_candid_Mood_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Mood): Mood {
-    return from_candid_variant_n12(_uploadFile, _downloadFile, value);
+function from_candid_Mood_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Mood): Mood {
+    return from_candid_variant_n11(_uploadFile, _downloadFile, value);
 }
-function from_candid_PersistentUserProfileView_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _PersistentUserProfileView): PersistentUserProfileView {
-    return from_candid_record_n5(_uploadFile, _downloadFile, value);
+function from_candid_PersistentUserProfileView_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _PersistentUserProfileView): PersistentUserProfileView {
+    return from_candid_record_n4(_uploadFile, _downloadFile, value);
 }
-function from_candid_RepeatCheckInReason_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _RepeatCheckInReason): RepeatCheckInReason {
-    return from_candid_variant_n17(_uploadFile, _downloadFile, value);
+function from_candid_RepeatCheckInReason_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _RepeatCheckInReason): RepeatCheckInReason {
+    return from_candid_variant_n16(_uploadFile, _downloadFile, value);
 }
-function from_candid_RepeatCheckIn_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _RepeatCheckIn): RepeatCheckIn {
-    return from_candid_record_n15(_uploadFile, _downloadFile, value);
+function from_candid_RepeatCheckIn_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _RepeatCheckIn): RepeatCheckIn {
+    return from_candid_record_n14(_uploadFile, _downloadFile, value);
 }
 function from_candid_UserRole_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
     return from_candid_variant_n20(_uploadFile, _downloadFile, value);
 }
-function from_candid_opt_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Mood]): Mood | null {
-    return value.length === 0 ? null : from_candid_Mood_n11(_uploadFile, _downloadFile, value[0]);
-}
-function from_candid_opt_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [boolean]): boolean | null {
+function from_candid_opt_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [boolean]): boolean | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_PersistentUserProfileView]): PersistentUserProfileView | null {
-    return value.length === 0 ? null : from_candid_PersistentUserProfileView_n4(_uploadFile, _downloadFile, value[0]);
+function from_candid_opt_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_PersistentUserProfileView]): PersistentUserProfileView | null {
+    return value.length === 0 ? null : from_candid_PersistentUserProfileView_n3(_uploadFile, _downloadFile, value[0]);
 }
-function from_candid_opt_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [bigint]): bigint | null {
+function from_candid_opt_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [bigint]): bigint | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_record_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_opt_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Mood]): Mood | null {
+    return value.length === 0 ? null : from_candid_Mood_n10(_uploadFile, _downloadFile, value[0]);
+}
+function from_candid_record_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     timestamp: bigint;
     reason: _RepeatCheckInReason;
 }): {
@@ -487,7 +537,7 @@ function from_candid_record_n15(_uploadFile: (file: ExternalBlob) => Promise<Uin
 } {
     return {
         timestamp: value.timestamp,
-        reason: from_candid_RepeatCheckInReason_n16(_uploadFile, _downloadFile, value.reason)
+        reason: from_candid_RepeatCheckInReason_n15(_uploadFile, _downloadFile, value.reason)
     };
 }
 function from_candid_record_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
@@ -504,21 +554,24 @@ function from_candid_record_n21(_uploadFile: (file: ExternalBlob) => Promise<Uin
     currentStreak: bigint;
 } {
     return {
-        last14Days: from_candid_vec_n7(_uploadFile, _downloadFile, value.last14Days),
+        last14Days: from_candid_vec_n6(_uploadFile, _downloadFile, value.last14Days),
         drankDays: value.drankDays,
         soberDays: value.soberDays,
         totalCheckIns: value.totalCheckIns,
         currentStreak: value.currentStreak
     };
 }
-function from_candid_record_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     lastCheckInDate: [] | [bigint];
     aggregatedEntries: Array<_AggregatedEntry>;
     lastMotivationClickDay: bigint;
     motivationButtonClicks: bigint;
     onboardingAnswers: _OnboardingAnswers;
     lastBrutalFriendFeedback: string;
+    streakTarget: bigint;
+    initialSyncCompleted: boolean;
     repeatCheckIns: Array<_RepeatCheckIn>;
+    achievementShownForThisTarget: boolean;
     currentDayCheckInStatus: [] | [boolean];
     hasCompletedOnboarding: boolean;
     currentDayTotalDrinks: bigint;
@@ -529,25 +582,31 @@ function from_candid_record_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint
     motivationButtonClicks: bigint;
     onboardingAnswers: OnboardingAnswers;
     lastBrutalFriendFeedback: string;
+    streakTarget: bigint;
+    initialSyncCompleted: boolean;
     repeatCheckIns: Array<RepeatCheckIn>;
+    achievementShownForThisTarget: boolean;
     currentDayCheckInStatus?: boolean;
     hasCompletedOnboarding: boolean;
     currentDayTotalDrinks: bigint;
 } {
     return {
-        lastCheckInDate: record_opt_to_undefined(from_candid_opt_n6(_uploadFile, _downloadFile, value.lastCheckInDate)),
-        aggregatedEntries: from_candid_vec_n7(_uploadFile, _downloadFile, value.aggregatedEntries),
+        lastCheckInDate: record_opt_to_undefined(from_candid_opt_n5(_uploadFile, _downloadFile, value.lastCheckInDate)),
+        aggregatedEntries: from_candid_vec_n6(_uploadFile, _downloadFile, value.aggregatedEntries),
         lastMotivationClickDay: value.lastMotivationClickDay,
         motivationButtonClicks: value.motivationButtonClicks,
         onboardingAnswers: value.onboardingAnswers,
         lastBrutalFriendFeedback: value.lastBrutalFriendFeedback,
-        repeatCheckIns: from_candid_vec_n13(_uploadFile, _downloadFile, value.repeatCheckIns),
-        currentDayCheckInStatus: record_opt_to_undefined(from_candid_opt_n18(_uploadFile, _downloadFile, value.currentDayCheckInStatus)),
+        streakTarget: value.streakTarget,
+        initialSyncCompleted: value.initialSyncCompleted,
+        repeatCheckIns: from_candid_vec_n12(_uploadFile, _downloadFile, value.repeatCheckIns),
+        achievementShownForThisTarget: value.achievementShownForThisTarget,
+        currentDayCheckInStatus: record_opt_to_undefined(from_candid_opt_n17(_uploadFile, _downloadFile, value.currentDayCheckInStatus)),
         hasCompletedOnboarding: value.hasCompletedOnboarding,
         currentDayTotalDrinks: value.currentDayTotalDrinks
     };
 }
-function from_candid_record_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     date: bigint;
     mood: [] | [_Mood];
     sober: boolean;
@@ -562,13 +621,13 @@ function from_candid_record_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint
 } {
     return {
         date: value.date,
-        mood: record_opt_to_undefined(from_candid_opt_n10(_uploadFile, _downloadFile, value.mood)),
+        mood: record_opt_to_undefined(from_candid_opt_n9(_uploadFile, _downloadFile, value.mood)),
         sober: value.sober,
         checkInCount: value.checkInCount,
         drinks: value.drinks
     };
 }
-function from_candid_variant_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     sad: null;
 } | {
     happy: null;
@@ -577,7 +636,7 @@ function from_candid_variant_n12(_uploadFile: (file: ExternalBlob) => Promise<Ui
 }): Mood {
     return "sad" in value ? Mood.sad : "happy" in value ? Mood.happy : "neutral" in value ? Mood.neutral : value;
 }
-function from_candid_variant_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     habit: null;
 } | {
     urge: null;
@@ -599,11 +658,11 @@ function from_candid_variant_n20(_uploadFile: (file: ExternalBlob) => Promise<Ui
 }): UserRole {
     return "admin" in value ? UserRole.admin : "user" in value ? UserRole.user : "guest" in value ? UserRole.guest : value;
 }
-function from_candid_vec_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_RepeatCheckIn>): Array<RepeatCheckIn> {
-    return value.map((x)=>from_candid_RepeatCheckIn_n14(_uploadFile, _downloadFile, x));
+function from_candid_vec_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_RepeatCheckIn>): Array<RepeatCheckIn> {
+    return value.map((x)=>from_candid_RepeatCheckIn_n13(_uploadFile, _downloadFile, x));
 }
-function from_candid_vec_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_AggregatedEntry>): Array<AggregatedEntry> {
-    return value.map((x)=>from_candid_AggregatedEntry_n8(_uploadFile, _downloadFile, x));
+function from_candid_vec_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_AggregatedEntry>): Array<AggregatedEntry> {
+    return value.map((x)=>from_candid_AggregatedEntry_n7(_uploadFile, _downloadFile, x));
 }
 function to_candid_AggregatedEntry_n25(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: AggregatedEntry): _AggregatedEntry {
     return to_candid_record_n26(_uploadFile, _downloadFile, value);
@@ -633,7 +692,10 @@ function to_candid_record_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8
     motivationButtonClicks: bigint;
     onboardingAnswers: OnboardingAnswers;
     lastBrutalFriendFeedback: string;
+    streakTarget: bigint;
+    initialSyncCompleted: boolean;
     repeatCheckIns: Array<RepeatCheckIn>;
+    achievementShownForThisTarget: boolean;
     currentDayCheckInStatus?: boolean;
     hasCompletedOnboarding: boolean;
     currentDayTotalDrinks: bigint;
@@ -644,7 +706,10 @@ function to_candid_record_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8
     motivationButtonClicks: bigint;
     onboardingAnswers: _OnboardingAnswers;
     lastBrutalFriendFeedback: string;
+    streakTarget: bigint;
+    initialSyncCompleted: boolean;
     repeatCheckIns: Array<_RepeatCheckIn>;
+    achievementShownForThisTarget: boolean;
     currentDayCheckInStatus: [] | [boolean];
     hasCompletedOnboarding: boolean;
     currentDayTotalDrinks: bigint;
@@ -656,7 +721,10 @@ function to_candid_record_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8
         motivationButtonClicks: value.motivationButtonClicks,
         onboardingAnswers: value.onboardingAnswers,
         lastBrutalFriendFeedback: value.lastBrutalFriendFeedback,
+        streakTarget: value.streakTarget,
+        initialSyncCompleted: value.initialSyncCompleted,
         repeatCheckIns: to_candid_vec_n29(_uploadFile, _downloadFile, value.repeatCheckIns),
+        achievementShownForThisTarget: value.achievementShownForThisTarget,
         currentDayCheckInStatus: value.currentDayCheckInStatus ? candid_some(value.currentDayCheckInStatus) : candid_none(),
         hasCompletedOnboarding: value.hasCompletedOnboarding,
         currentDayTotalDrinks: value.currentDayTotalDrinks

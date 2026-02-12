@@ -1,35 +1,104 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-12T12:57:39.843Z",
+  "generatedAt": "2026-02-12T16:38:56.508Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 1,
-    "implemented": 1,
+    "total": 5,
+    "implemented": 4,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "Add the Usergeek tracking snippet to the frontend HTML entry point and configure it with API key `014402022A34A8626A6C124A58B6197F`.",
+        "summary": "Add a persistent user-profile flag `achievementShownForThisTarget: boolean` and expose it through all relevant backend profile APIs (read + save) so the frontend can reliably determine whether the streak-achievement experience has already been completed for the current streak target.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-2",
+        "summary": "Implement the trigger logic for the streak-achievement experience so it appears full-screen only when `streakCurrent >= streakTarget` AND `achievementShownForThisTarget == false`. It must fire immediately after the daily check-in that completes/exceeds the target, and also for returning users on next login if they already exceed the target and have not seen the achievement yet.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/index.html"
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/pages/Dashboard.tsx",
+          "frontend/src/components/StreakAchievementOverlay.tsx"
         ],
         "matchedFiles": [
-          "frontend/index.html"
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/pages/Dashboard.tsx",
+          "frontend/src/components/StreakAchievementOverlay.tsx"
+        ]
+      },
+      {
+        "id": "REQ-3",
+        "summary": "Create the full-screen streak-achievement UI as a modal overlay in a dark brutal BRUTAL aesthetic: black background with subtle grain texture, neon pink glow accent, and a slow pulse/glow animation behind the large streak number. Center the content in a vertical stack: huge streak number with label (e.g., \"14 DAYS\"), a short (max 2–3 lines), dark-humor, emotionally strong message (no emojis, no positivity clichés), and a single primary button labeled exactly \"SHUT UP!\" with neon outline and subtle hover glow. Do not include any close icon; the user must press the button.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/StreakAchievementOverlay.tsx",
+          "frontend/src/index.css",
+          "frontend/tailwind.config.js"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/StreakAchievementOverlay.tsx",
+          "frontend/src/index.css",
+          "frontend/tailwind.config.js"
+        ]
+      },
+      {
+        "id": "REQ-4",
+        "summary": "After the user presses \"SHUT UP!\", show a second full-screen panel that asks: Title exactly \"Do you want to try again?\" with calm, direct, slightly brutal tone (not celebratory). Present the same streak target options as onboarding step #5 (\"2 days\", \"5 days\", \"1 week\", \"2 weeks\", \"1 month\"). The user must select one option; if they dismiss via refresh or navigation, the flow must reappear until a selection is made.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/StreakAchievementOverlay.tsx",
+          "frontend/src/components/OnboardingFlow.tsx",
+          "frontend/src/utils/streakTargets.ts"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/StreakAchievementOverlay.tsx",
+          "frontend/src/components/OnboardingFlow.tsx",
+          "frontend/src/utils/streakTargets.ts"
+        ]
+      },
+      {
+        "id": "REQ-5",
+        "summary": "When the user selects a new streak target in the second panel: update the stored streak target (the same profile field used by onboarding target selection), reset `achievementShownForThisTarget` to `false`, and close the full-screen experience with a fade transition, returning the user to the dashboard. Also update/reset the existing streak reset behavior so that, in addition to resetting when the user had a drink, it also resets when the user achieves their target (per existing streak/reset field behavior).",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/StreakAchievementOverlay.tsx",
+          "frontend/src/pages/Dashboard.tsx",
+          "frontend/src/index.css"
+        ],
+        "matchedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/StreakAchievementOverlay.tsx",
+          "frontend/src/pages/Dashboard.tsx",
+          "frontend/src/index.css"
         ]
       }
     ]
   },
   "changedFiles": [
+    "backend/main.mo",
+    "backend/migration.mo",
     "build-request.json",
-    "caffeine.lock.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/index.html",
+    "frontend/src/backend.d.ts",
+    "frontend/src/backend.ts",
+    "frontend/src/components/OnboardingFlow.tsx",
+    "frontend/src/components/StreakAchievementOverlay.tsx",
+    "frontend/src/declarations/backend.did.d.ts",
+    "frontend/src/declarations/backend.did.js",
+    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/index.css",
+    "frontend/src/pages/Dashboard.tsx",
+    "frontend/src/utils/streakTargets.ts",
+    "frontend/tailwind.config.js",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

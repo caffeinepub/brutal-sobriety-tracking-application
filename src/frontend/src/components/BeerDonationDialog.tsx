@@ -71,7 +71,7 @@ export default function BeerDonationDialog({ open, onClose, address }: BeerDonat
             </p>
             <ol className="list-decimal list-inside space-y-1">
               <li>Copy the address above</li>
-              <li>Open your ICP wallet</li>
+              <li>Open your BTC wallet</li>
               <li>Send any amount you want</li>
               <li>Feel good about supporting brutal honesty</li>
             </ol>

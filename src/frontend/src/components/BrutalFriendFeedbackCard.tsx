@@ -1,7 +1,46 @@
-import { useGetLatestBrutalFriendFeedback } from '../hooks/useQueries';
+import { useGetLatestBrutalFriendFeedback, useGetProgressMetrics, useGetCallerUserProfile } from '../hooks/useQueries';
+import { useInternetIdentity } from '../hooks/useInternetIdentity';
+import { useEffect, useRef } from 'react';
+import { trackEvent, getFeedbackDedupeKey } from '../utils/usergeek';
+import { parseSobrietyDurationToDays } from '../utils/sobrietyDuration';
 
 export default function BrutalFriendFeedbackCard() {
+  const { identity } = useInternetIdentity();
   const { data: feedback, isLoading, error } = useGetLatestBrutalFriendFeedback();
+  const { data: progressMetrics } = useGetProgressMetrics();
+  const { data: userProfile } = useGetCallerUserProfile();
+
+  const lastTrackedFeedbackRef = useRef<string | null>(null);
+
+  // Track feedback shown event
+  useEffect(() => {
+    if (!feedback || typeof feedback !== 'string' || !feedback.trim()) return;
+    if (lastTrackedFeedbackRef.current === feedback) return;
+
+    // Generate a stable feedback ID (hash of the message)
+    const feedbackId = btoa(feedback).substring(0, 16);
+    const dedupeKey = getFeedbackDedupeKey(feedbackId);
+
+    // Get mood and streak ratio if available
+    const last14Days = progressMetrics?.last14Days || [];
+    const latestEntry = last14Days.length > 0 ? last14Days[last14Days.length - 1] : null;
+    const mood = latestEntry?.mood ? (latestEntry.mood as any).__kind__ : undefined;
+
+    const currentStreak = progressMetrics?.currentStreak ? Number(progressMetrics.currentStreak) : undefined;
+    const sobrietyGoal = userProfile?.onboardingAnswers?.sobrietyDuration;
+    const streakTarget = sobrietyGoal ? parseSobrietyDurationToDays(sobrietyGoal) : undefined;
+    const streakRatio = currentStreak !== undefined && streakTarget && streakTarget > 0
+      ? Math.round((currentStreak / streakTarget) * 100) / 100
+      : undefined;
+
+    trackEvent('BrutalFriend Feedback Shown', {
+      feedbackId,
+      mood,
+      streakRatio,
+    }, dedupeKey);
+
+    lastTrackedFeedbackRef.current = feedback;
+  }, [feedback, progressMetrics, userProfile]);
 
   if (isLoading) {
     return (

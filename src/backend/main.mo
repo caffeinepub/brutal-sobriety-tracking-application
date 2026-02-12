@@ -6,15 +6,14 @@ import Nat64 "mo:core/Nat64";
 import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
 import Int "mo:core/Int";
-import Principal "mo:core/Principal";
 import Nat "mo:core/Nat";
-import Iter "mo:core/Iter";
+import Principal "mo:core/Principal";
+import Migration "migration";
 
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
 
-// Apply migration from persistent state format
-
+(with migration = Migration.run)
 actor {
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
@@ -63,10 +62,13 @@ actor {
     lastBrutalFriendFeedback : Text;
     motivationButtonClicks : Nat;
     lastMotivationClickDay : Nat64;
+    initialSyncCompleted : Bool;
+    streakTarget : Nat;
+    achievementShownForThisTarget : Bool;
   };
 
   type PersistentUserProfile = {
-    onboardingAnswers : OnboardingAnswers;
+    onboardingAnswers : ?OnboardingAnswers;
     hasCompletedOnboarding : Bool;
     lastCheckInDate : ?Nat64;
     currentDayCheckInStatus : ?Bool;
@@ -76,6 +78,9 @@ actor {
     lastBrutalFriendFeedback : Text;
     motivationButtonClicks : Nat;
     lastMotivationClickDay : Nat64;
+    initialSyncCompleted : Bool;
+    streakTarget : Nat;
+    achievementShownForThisTarget : Bool;
   };
 
   module AggregatedEntry {
@@ -85,7 +90,6 @@ actor {
   };
 
   let brutalFriendFeedbackMessages = [
-    // ORIGINAL 20 MESSAGES
     "Still sober? Blink twice if you're hostage to your own self-control.",
     "You resisted again? The bar staff are starting to worry.",
     "One day without drinks — your liver just sent a thank you emoji.",
@@ -106,7 +110,6 @@ actor {
     "Sober success! You're like a unicorn, but real and slightly less magical.",
     "You slipped? Don't worry, even superheroes have off days.",
     "Clean streak intact! You're basically a sobriety ninja now.",
-    // NEW MESSAGES 21-50
     "If you're over 40 and still binge drinking, congratulations on still being alive. Kind of.",
     "Hangover or just existential dread, aged 35+? Hard to tell these days.",
     "Alcohol isn't a personality type, especially not for the under-25 crowd.",
@@ -219,9 +222,31 @@ actor {
 
   func toViewProfile(profile : PersistentUserProfile) : PersistentUserProfileView {
     {
-      profile with
+      onboardingAnswers = switch (profile.onboardingAnswers) {
+        case (null) {
+          {
+            ageRange = "";
+            drinksPerWeek = "";
+            motivation = "";
+            secondarySubstance = "";
+            sobrietyDuration = "";
+            timeZone = "";
+          };
+        };
+        case (?answers) { answers };
+      };
+      hasCompletedOnboarding = profile.hasCompletedOnboarding;
+      lastCheckInDate = profile.lastCheckInDate;
+      currentDayCheckInStatus = profile.currentDayCheckInStatus;
       aggregatedEntries = profile.aggregatedEntries.toArray();
       repeatCheckIns = profile.repeatCheckIns.toArray();
+      currentDayTotalDrinks = profile.currentDayTotalDrinks;
+      lastBrutalFriendFeedback = profile.lastBrutalFriendFeedback;
+      motivationButtonClicks = profile.motivationButtonClicks;
+      lastMotivationClickDay = profile.lastMotivationClickDay;
+      initialSyncCompleted = profile.initialSyncCompleted;
+      streakTarget = profile.streakTarget;
+      achievementShownForThisTarget = profile.achievementShownForThisTarget;
     };
   };
 
@@ -289,6 +314,36 @@ actor {
     };
   };
 
+  public shared ({ caller }) func completeOnboarding(answers : OnboardingAnswers) : async PersistentUserProfileView {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can complete onboarding");
+    };
+
+    let persistentProfile : PersistentUserProfile = switch (userProfiles.get(caller)) {
+      case (null) {
+        {
+          onboardingAnswers = ?answers;
+          hasCompletedOnboarding = true;
+          lastCheckInDate = null;
+          currentDayCheckInStatus = null;
+          aggregatedEntries = List.empty<AggregatedEntry>();
+          repeatCheckIns = List.empty<RepeatCheckIn>();
+          currentDayTotalDrinks = 0;
+          lastBrutalFriendFeedback = "";
+          motivationButtonClicks = 0;
+          lastMotivationClickDay = 0;
+          initialSyncCompleted = false;
+          streakTarget = 7;
+          achievementShownForThisTarget = false;
+        };
+      };
+      case (?profile) { { profile with onboardingAnswers = ?answers; hasCompletedOnboarding = true } };
+    };
+
+    userProfiles.add(caller, persistentProfile);
+    toViewProfile(persistentProfile);
+  };
+
   public query ({ caller }) func getCallerUserProfile() : async ?PersistentUserProfileView {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can view profiles");
@@ -315,9 +370,19 @@ actor {
     };
 
     let persistentProfile : PersistentUserProfile = {
-      profile with
+      onboardingAnswers = ?profile.onboardingAnswers;
+      hasCompletedOnboarding = profile.hasCompletedOnboarding;
+      lastCheckInDate = profile.lastCheckInDate;
+      currentDayCheckInStatus = profile.currentDayCheckInStatus;
       aggregatedEntries = List.fromArray(profile.aggregatedEntries);
       repeatCheckIns = List.fromArray(profile.repeatCheckIns);
+      currentDayTotalDrinks = profile.currentDayTotalDrinks;
+      lastBrutalFriendFeedback = profile.lastBrutalFriendFeedback;
+      motivationButtonClicks = profile.motivationButtonClicks;
+      lastMotivationClickDay = profile.lastMotivationClickDay;
+      initialSyncCompleted = profile.initialSyncCompleted;
+      streakTarget = profile.streakTarget;
+      achievementShownForThisTarget = profile.achievementShownForThisTarget;
     };
     userProfiles.add(caller, persistentProfile);
   };
@@ -326,6 +391,7 @@ actor {
     message : Text;
     date : Nat64;
     totalDrinks : Nat;
+    achievedStreakTarget : Bool;
   } {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can submit check-ins");
@@ -350,14 +416,7 @@ actor {
     let persistentProfile : PersistentUserProfile = switch (userProfiles.get(caller)) {
       case (null) {
         {
-          onboardingAnswers = {
-            ageRange = "";
-            drinksPerWeek = "";
-            motivation = "";
-            secondarySubstance = "";
-            sobrietyDuration = "";
-            timeZone = "";
-          };
+          onboardingAnswers = null;
           hasCompletedOnboarding = false;
           lastCheckInDate = ?today;
           currentDayCheckInStatus = ?true;
@@ -367,6 +426,9 @@ actor {
           lastBrutalFriendFeedback = getBrutalFriendMessage(null);
           motivationButtonClicks = 0;
           lastMotivationClickDay = 0;
+          initialSyncCompleted = false;
+          streakTarget = 7;
+          achievementShownForThisTarget = false;
         };
       };
       case (?profile) {
@@ -384,6 +446,7 @@ actor {
             },
           );
         };
+        let hasAchievedStreak = computeCurrentStreak(profile) >= profile.streakTarget;
         {
           profile with
           aggregatedEntries = mergedEntries;
@@ -391,6 +454,9 @@ actor {
           currentDayCheckInStatus = ?true;
           currentDayTotalDrinks = newTotalDrinks;
           lastBrutalFriendFeedback = getBrutalFriendMessage(null);
+          achievementShownForThisTarget = if (hasAchievedStreak) { false } else {
+            profile.achievementShownForThisTarget;
+          };
         };
       };
     };
@@ -401,6 +467,7 @@ actor {
       message = persistentProfile.lastBrutalFriendFeedback;
       date = startOfDay;
       totalDrinks = persistentProfile.currentDayTotalDrinks;
+      achievedStreakTarget = hasAchievedStreak(persistentProfile);
     };
   };
 
@@ -594,14 +661,7 @@ actor {
     let profile = switch (userProfiles.get(caller)) {
       case (null) {
         {
-          onboardingAnswers = {
-            ageRange = "";
-            drinksPerWeek = "";
-            motivation = "";
-            secondarySubstance = "";
-            sobrietyDuration = "";
-            timeZone = "";
-          };
+          onboardingAnswers = null;
           hasCompletedOnboarding = false;
           lastCheckInDate = ?today;
           currentDayCheckInStatus = ?true;
@@ -611,6 +671,9 @@ actor {
           lastBrutalFriendFeedback = getBrutalFriendMessage(null);
           motivationButtonClicks = 0;
           lastMotivationClickDay = today;
+          initialSyncCompleted = false;
+          streakTarget = 7;
+          achievementShownForThisTarget = false;
         };
       };
       case (?existing) { existing };
@@ -660,8 +723,69 @@ actor {
 
     switch (userProfiles.get(caller)) {
       case (null) { "" };
-      case (?profile) { profile.onboardingAnswers.timeZone };
+      case (?profile) {
+        switch (profile.onboardingAnswers) {
+          case (null) { "" };
+          case (?answers) { answers.timeZone };
+        };
+      };
+    };
+  };
+
+  func computeCurrentStreak(profile : PersistentUserProfile) : Nat {
+    var currentStreak = 0;
+    let entriesArray = profile.aggregatedEntries.toArray();
+    let reversedEntries = entriesArray.reverse();
+
+    for (entry in reversedEntries.values()) {
+      if (entry.sober) {
+        currentStreak += 1;
+      } else {
+        return currentStreak;
+      };
+    };
+
+    currentStreak;
+  };
+
+  func hasAchievedStreak(profile : PersistentUserProfile) : Bool {
+    computeCurrentStreak(profile) >= profile.streakTarget;
+  };
+
+  public shared ({ caller }) func setStreakTarget(newTarget : Nat) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can set streak targets");
+    };
+    switch (userProfiles.get(caller)) {
+      case (null) {
+        Runtime.trap("User profile not found - cannot set streak target");
+      };
+      case (?profile) {
+        let updatedProfile = {
+          profile with
+          streakTarget = newTarget;
+          achievementShownForThisTarget = false;
+        };
+        userProfiles.add(caller, updatedProfile);
+      };
+    };
+  };
+
+  public shared ({ caller }) func markAchievementAsShown() : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can mark achievements as shown");
+    };
+
+    switch (userProfiles.get(caller)) {
+      case (null) {
+        Runtime.trap("User profile not found - cannot mark achievement as shown");
+      };
+      case (?profile) {
+        let updatedProfile = {
+          profile with achievementShownForThisTarget = true;
+        };
+        userProfiles.add(caller, updatedProfile);
+      };
     };
   };
 };
-

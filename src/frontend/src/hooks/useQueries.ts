@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
-import type { PersistentUserProfileView, CheckInEntry, AggregatedEntry, RepeatCheckInReason } from '../backend';
+import type { PersistentUserProfileView, CheckInEntry, AggregatedEntry, RepeatCheckInReason, OnboardingAnswers } from '../backend';
 
 const RETRY_CONFIG = {
   retry: 3,
@@ -111,6 +111,32 @@ export function useSaveCallerUserProfile() {
   });
 }
 
+export function useCompleteOnboarding() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (answers: OnboardingAnswers) => {
+      if (!actor) {
+        throw new Error('Backend connection not ready. Please wait and try again.');
+      }
+      
+      console.log('Completing onboarding...', answers);
+      const result = await actor.completeOnboarding(answers);
+      console.log('Onboarding completed successfully:', result);
+      return result;
+    },
+    onSuccess: () => {
+      console.log('Onboarding successful, invalidating queries...');
+      queryClient.invalidateQueries({ queryKey: ['onboardingCheckInStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
+    },
+    onError: (error) => {
+      console.error('Onboarding completion error:', error);
+    },
+  });
+}
+
 export function useSubmitCheckIn() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
@@ -140,6 +166,7 @@ export function useSubmitCheckIn() {
       queryClient.invalidateQueries({ queryKey: ['moodTrend'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['onboardingCheckInStatus'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['latestBrutalFriendFeedback'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'], refetchType: 'active' });
     },
   });
 }
@@ -193,36 +220,26 @@ export function useSubmitFollowUpCheckIn() {
       queryClient.invalidateQueries({ queryKey: ['moodTrend'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['onboardingCheckInStatus'], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: ['latestBrutalFriendFeedback'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'], refetchType: 'active' });
     },
   });
 }
 
 export function useGetLast14Days() {
   const { actor, isFetching: actorFetching } = useActor();
-  const actorInitialized = !!actor && !actorFetching;
 
   return useQuery<AggregatedEntry[]>({
     queryKey: ['last14Days'],
     queryFn: async () => {
       if (!actor) return [];
-      try {
-        const result = await actor.getLast14Days();
-        return result;
-      } catch (error) {
-        console.error('Failed to fetch last 14 days:', error);
-        return [];
-      }
+      return actor.getLast14Days();
     },
-    enabled: actorInitialized,
-    refetchOnMount: 'always',
-    staleTime: 0,
-    ...RETRY_CONFIG,
+    enabled: !!actor && !actorFetching,
   });
 }
 
 export function useGetProgressMetrics() {
   const { actor, isFetching: actorFetching } = useActor();
-  const actorInitialized = !!actor && !actorFetching;
 
   return useQuery<{
     soberDays: bigint;
@@ -234,59 +251,35 @@ export function useGetProgressMetrics() {
     queryKey: ['progressMetrics'],
     queryFn: async () => {
       if (!actor) throw new Error('Actor not available');
-      try {
-        return await actor.getProgressMetrics();
-      } catch (error) {
-        console.error('Failed to fetch progress metrics:', error);
-        throw error;
-      }
+      return actor.getProgressMetrics();
     },
-    enabled: actorInitialized,
-    refetchOnMount: 'always',
-    ...RETRY_CONFIG,
+    enabled: !!actor && !actorFetching,
   });
 }
 
 export function useGetMoodTrend() {
   const { actor, isFetching: actorFetching } = useActor();
-  const actorInitialized = !!actor && !actorFetching;
 
   return useQuery<bigint>({
     queryKey: ['moodTrend'],
     queryFn: async () => {
       if (!actor) return BigInt(0);
-      try {
-        return await actor.getMoodTrend();
-      } catch (error) {
-        console.error('Failed to fetch mood trend:', error);
-        return BigInt(0);
-      }
+      return actor.getMoodTrend();
     },
-    enabled: actorInitialized,
-    refetchOnMount: 'always',
-    ...RETRY_CONFIG,
+    enabled: !!actor && !actorFetching,
   });
 }
 
 export function useGetLatestBrutalFriendFeedback() {
   const { actor, isFetching: actorFetching } = useActor();
-  const actorInitialized = !!actor && !actorFetching;
 
   return useQuery<string>({
     queryKey: ['latestBrutalFriendFeedback'],
     queryFn: async () => {
       if (!actor) return '';
-      try {
-        return await actor.getLatestBrutalFriendFeedback();
-      } catch (error) {
-        console.error('Failed to fetch latest brutal friend feedback:', error);
-        return '';
-      }
+      return actor.getLatestBrutalFriendFeedback();
     },
-    enabled: actorInitialized,
-    refetchOnMount: 'always',
-    staleTime: 0,
-    ...RETRY_CONFIG,
+    enabled: !!actor && !actorFetching,
   });
 }
 
@@ -298,12 +291,54 @@ export function useGetMotivationMessage() {
       if (!actor) {
         throw new Error('Backend connection not ready. Please wait and try again.');
       }
-      try {
-        return await actor.getMotivationMessage();
-      } catch (error) {
-        console.error('Failed to fetch motivation message:', error);
-        throw error;
+      
+      console.log('Getting motivation message...');
+      const result = await actor.getMotivationMessage();
+      console.log('Motivation message received:', result);
+      return result;
+    },
+  });
+}
+
+export function useSetStreakTarget() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (newTarget: number) => {
+      if (!actor) {
+        throw new Error('Backend connection not ready. Please wait and try again.');
       }
+      
+      console.log('Setting new streak target...', newTarget);
+      await actor.setStreakTarget(BigInt(newTarget));
+      console.log('Streak target set successfully');
+    },
+    onSuccess: () => {
+      console.log('Streak target update successful, invalidating queries...');
+      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['onboardingCheckInStatus'], refetchType: 'active' });
+    },
+  });
+}
+
+export function useMarkAchievementAsShown() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!actor) {
+        throw new Error('Backend connection not ready. Please wait and try again.');
+      }
+      
+      console.log('Marking achievement as shown...');
+      await actor.markAchievementAsShown();
+      console.log('Achievement marked as shown successfully');
+    },
+    onSuccess: () => {
+      console.log('Achievement marked, invalidating queries...');
+      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'], refetchType: 'active' });
     },
   });
 }

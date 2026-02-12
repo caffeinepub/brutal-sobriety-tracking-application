@@ -41,7 +41,10 @@ export interface PersistentUserProfileView {
   'motivationButtonClicks' : bigint,
   'onboardingAnswers' : OnboardingAnswers,
   'lastBrutalFriendFeedback' : string,
+  'streakTarget' : bigint,
+  'initialSyncCompleted' : boolean,
   'repeatCheckIns' : Array<RepeatCheckIn>,
+  'achievementShownForThisTarget' : boolean,
   'currentDayCheckInStatus' : [] | [boolean],
   'hasCompletedOnboarding' : boolean,
   'currentDayTotalDrinks' : bigint,
@@ -73,6 +76,10 @@ export interface _SERVICE {
       'needsFollowUp' : boolean,
     }
   >,
+  'completeOnboarding' : ActorMethod<
+    [OnboardingAnswers],
+    PersistentUserProfileView
+  >,
   'getCallerUserProfile' : ActorMethod<[], [] | [PersistentUserProfileView]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getLast14Days' : ActorMethod<[], Array<AggregatedEntry>>,
@@ -99,10 +106,17 @@ export interface _SERVICE {
   'getUserProfile' : ActorMethod<[Principal], [] | [PersistentUserProfileView]>,
   'getUserTimeZone' : ActorMethod<[], string>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
+  'markAchievementAsShown' : ActorMethod<[], undefined>,
   'saveCallerUserProfile' : ActorMethod<[PersistentUserProfileView], undefined>,
+  'setStreakTarget' : ActorMethod<[bigint], undefined>,
   'submitCheckIn' : ActorMethod<
     [CheckInEntry],
-    { 'date' : bigint, 'message' : string, 'totalDrinks' : bigint }
+    {
+      'date' : bigint,
+      'achievedStreakTarget' : boolean,
+      'message' : string,
+      'totalDrinks' : bigint,
+    }
   >,
   'submitFollowUpCheckIn' : ActorMethod<[bigint], string>,
   'submitRepeatCheckIn' : ActorMethod<[RepeatCheckInReason], undefined>,

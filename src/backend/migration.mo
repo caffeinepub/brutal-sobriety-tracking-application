@@ -1,9 +1,20 @@
+import List "mo:core/List";
 import Map "mo:core/Map";
 import Principal "mo:core/Principal";
-import List "mo:core/List";
 
 module {
-  type Mood = { #happy; #neutral; #sad };
+  type AggregatedEntry = {
+    date : Nat64;
+    sober : Bool;
+    drinks : Nat;
+    mood : ?{ #happy; #neutral; #sad };
+    checkInCount : Nat;
+  };
+
+  type RepeatCheckIn = {
+    timestamp : Nat64;
+    reason : { #reflection; #urge; #bored; #habit; #curiosity };
+  };
 
   type OnboardingAnswers = {
     ageRange : Text;
@@ -14,32 +25,54 @@ module {
     timeZone : Text;
   };
 
-  type AggregatedEntry = {
-    date : Nat64;
-    sober : Bool;
-    drinks : Nat;
-    mood : ?Mood;
-    checkInCount : Nat;
-  };
-
-  type PersistentUserProfile = {
-    onboardingAnswers : OnboardingAnswers;
+  type OldPersistentUserProfile = {
+    onboardingAnswers : ?OnboardingAnswers;
     hasCompletedOnboarding : Bool;
     lastCheckInDate : ?Nat64;
     currentDayCheckInStatus : ?Bool;
     aggregatedEntries : List.List<AggregatedEntry>;
+    repeatCheckIns : List.List<RepeatCheckIn>;
     currentDayTotalDrinks : Nat;
     lastBrutalFriendFeedback : Text;
     motivationButtonClicks : Nat;
     lastMotivationClickDay : Nat64;
+    initialSyncCompleted : Bool;
   };
 
-  // Migration logic: no changes to the state, just carry over
-  type Actor = {
-    userProfiles : Map.Map<Principal, PersistentUserProfile>;
+  type OldActor = {
+    userProfiles : Map.Map<Principal, OldPersistentUserProfile>;
   };
 
-  public func run(state : Actor) : Actor {
-    state;
+  type NewPersistentUserProfile = {
+    onboardingAnswers : ?OnboardingAnswers;
+    hasCompletedOnboarding : Bool;
+    lastCheckInDate : ?Nat64;
+    currentDayCheckInStatus : ?Bool;
+    aggregatedEntries : List.List<AggregatedEntry>;
+    repeatCheckIns : List.List<RepeatCheckIn>;
+    currentDayTotalDrinks : Nat;
+    lastBrutalFriendFeedback : Text;
+    motivationButtonClicks : Nat;
+    lastMotivationClickDay : Nat64;
+    initialSyncCompleted : Bool;
+    streakTarget : Nat;
+    achievementShownForThisTarget : Bool;
+  };
+
+  type NewActor = {
+    userProfiles : Map.Map<Principal, NewPersistentUserProfile>;
+  };
+
+  public func run(old : OldActor) : NewActor {
+    let newUserProfiles = old.userProfiles.map<Principal, OldPersistentUserProfile, NewPersistentUserProfile>(
+      func(_principal, oldProfile) {
+        {
+          oldProfile with
+          streakTarget = 7;
+          achievementShownForThisTarget = false;
+        };
+      }
+    );
+    { userProfiles = newUserProfiles };
   };
 };

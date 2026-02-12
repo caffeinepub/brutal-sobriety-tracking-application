@@ -1,18 +1,44 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "New project",
+  "summary": "BRUTAL app: add a full-screen streak-achievement experience that triggers when a user reaches/exceeds their configured sober-streak target, shown once per target and then guides them to select a new target.",
   "architectural_notes": [
-    "Add Usergeek analytics tracking snippet to the frontend in the appropriate entrypoint file; configure via API key."
+    "Project is an existing app ('BRUTAL'), not a new project; feature must be additive and avoid regressions in existing onboarding/check-in/dashboard/analytics.",
+    "Use existing check-in field that indicates the user drank today (already drives resets); when selecting a new target, reset streakCurrent to 0 only if the existing 'drank today' condition is true.",
+    "Modal close should use a fade transition after selecting the new target."
   ],
   "known_issues": [],
   "isFixRequest": false,
   "existing_features": [
     {
-      "id": "feature-add-the-usergeek-tracking-snippet-to-the-frontend-html-entry-point-and-configure-it-with-api-key-014402022a34a8626a6c124a58b6197f",
-      "title": "Add the Usergeek tracking snippet to the frontend HTML entry point and configure it with API key `014402022A34A8626A6C124A58B6197F`.",
+      "id": "feature-implement-the-trigger-logic-for-the-streak-achievement-experience-so-it-appears-full-screen-only-when-streakcurrent-streaktarget-and-achievementshownforthistarget-false-it-must-fire-immediately-after-the-daily-check-in-that-completes-exceeds-the-target-and-also-for-returning-users-on-next-login-if-they-already-exceed-the-target-and-have-not-seen-the-achievement-yet",
+      "title": "Implement the trigger logic for the streak-achievement experience so it appears full-screen only when `streakCurrent >= streakTarget` AND `achievementShownForThisTarget == false`. It must fire immediately after the daily check-in that completes/exceeds the target, and also for returning users on next login if they already exceed the target and have not seen the achievement yet.",
       "reqIds": [
-        "REQ-1"
+        "REQ-2"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-create-the-full-screen-streak-achievement-ui-as-a-modal-overlay-in-a-dark-brutal-brutal-aesthetic-black-background-with-subtle-grain-texture-neon-pink-glow-accent-and-a-slow-pulse-glow-animation-behind-the-large-streak-number-center-the-content-in-a-vertical-stack-huge-streak-number-with-label-e-g-14-days-a-short-max-2-3-lines-dark-humor-emotionally-strong-message-no-emojis-no-positivity-clich-s-and-a-single-primary-button-labeled-exactly-shut-up-with-neon-outline-and-subtle-hover-glow-do-not-include-any-close-icon-the-user-must-press-the-button",
+      "title": "Create the full-screen streak-achievement UI as a modal overlay in a dark brutal BRUTAL aesthetic: black background with subtle grain texture, neon pink glow accent, and a slow pulse/glow animation behind the large streak number. Center the content in a vertical stack: huge streak number with label (e.g., \"14 DAYS\"), a short (max 2–3 lines), dark-humor, emotionally strong message (no emojis, no positivity clichés), and a single primary button labeled exactly \"SHUT UP!\" with neon outline and subtle hover glow. Do not include any close icon; the user must press the button.",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-after-the-user-presses-shut-up-show-a-second-full-screen-panel-that-asks-title-exactly-do-you-want-to-try-again-with-calm-direct-slightly-brutal-tone-not-celebratory-present-the-same-streak-target-options-as-onboarding-step-5-2-days-5-days-1-week-2-weeks-1-month-the-user-must-select-one-option-if-they-dismiss-via-refresh-or-navigation-the-flow-must-reappear-until-a-selection-is-made",
+      "title": "After the user presses \"SHUT UP!\", show a second full-screen panel that asks: Title exactly \"Do you want to try again?\" with calm, direct, slightly brutal tone (not celebratory). Present the same streak target options as onboarding step #5 (\"2 days\", \"5 days\", \"1 week\", \"2 weeks\", \"1 month\"). The user must select one option; if they dismiss via refresh or navigation, the flow must reappear until a selection is made.",
+      "reqIds": [
+        "REQ-4"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-when-the-user-selects-a-new-streak-target-in-the-second-panel-update-the-stored-streak-target-the-same-profile-field-used-by-onboarding-target-selection-reset-achievementshownforthistarget-to-false-and-close-the-full-screen-experience-with-a-fade-transition-returning-the-user-to-the-dashboard-also-update-reset-the-existing-streak-reset-behavior-so-that-in-addition-to-resetting-when-the-user-had-a-drink-it-also-resets-when-the-user-achieves-their-target-per-existing-streak-reset-field-behavior",
+      "title": "When the user selects a new streak target in the second panel: update the stored streak target (the same profile field used by onboarding target selection), reset `achievementShownForThisTarget` to `false`, and close the full-screen experience with a fade transition, returning the user to the dashboard. Also update/reset the existing streak reset behavior so that, in addition to resetting when the user had a drink, it also resets when the user achieves their target (per existing streak/reset field behavior).",
+      "reqIds": [
+        "REQ-5"
       ],
       "version": 1
     }
@@ -20,12 +46,20 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Integrate Usergeek tracking snippet into the frontend (placed in the appropriate entry file) and configure it with the provided API key",
+      "summary": "Full-screen streak achievement modal shown once per streak target upon reaching/exceeding target; then force-select next target with fade transition; uses profile flag achievementShownForThisTarget and integrates with existing drankToday/reset logic without altering existing onboarding/check-in/dashboard/analytics.",
       "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-2",
+      "summary": "Add a persistent user-profile flag `achievementShownForThisTarget: boolean` and expose it through all relevant backend profile APIs (read + save) so the frontend can reliably determine whether the streak-achievement experience has already been completed for the current streak target.",
+      "reqIds": [
+        "REQ-1"
+      ],
       "status": "pending"
     }
   ],
-  "projectName": "Integrate Usergeek tracking snippet into frontend with provided API key",
+  "projectName": "BRUTAL",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

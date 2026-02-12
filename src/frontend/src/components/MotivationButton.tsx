@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { useGetMotivationMessage } from '../hooks/useQueries';
+import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { Button } from '@/components/ui/button';
 import BrutalFriendDialog from './BrutalFriendDialog';
+import { trackEvent, getMotivationClickDedupeKey } from '../utils/usergeek';
 
 export default function MotivationButton() {
+  const { identity } = useInternetIdentity();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentMessage, setCurrentMessage] = useState('');
   const [remainingClicks, setRemainingClicks] = useState(3);
@@ -11,11 +14,24 @@ export default function MotivationButton() {
   const { mutate: getMotivation, isPending } = useGetMotivationMessage();
 
   const handleClick = () => {
+    const clickTimestamp = Date.now();
+
     getMotivation(undefined, {
       onSuccess: (data) => {
         setCurrentMessage(data.message);
         setRemainingClicks(Number(data.remainingClicks));
         setDialogOpen(true);
+
+        // Track motivation button click event
+        if (identity && !data.isLimitReached) {
+          const userId = identity.getPrincipal().toString();
+          const dedupeKey = getMotivationClickDedupeKey(userId, clickTimestamp);
+
+          trackEvent('Motivation Button Clicked', {
+            totalClicks: 3 - Number(data.remainingClicks),
+            lastClickDay: new Date().toISOString().split('T')[0],
+          }, dedupeKey);
+        }
       },
       onError: (error) => {
         console.error('Failed to get motivation:', error);

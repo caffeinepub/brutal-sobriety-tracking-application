@@ -28,7 +28,10 @@ export interface PersistentUserProfileView {
     motivationButtonClicks: bigint;
     onboardingAnswers: OnboardingAnswers;
     lastBrutalFriendFeedback: string;
+    streakTarget: bigint;
+    initialSyncCompleted: boolean;
     repeatCheckIns: Array<RepeatCheckIn>;
+    achievementShownForThisTarget: boolean;
     currentDayCheckInStatus?: boolean;
     hasCompletedOnboarding: boolean;
     currentDayTotalDrinks: bigint;
@@ -72,6 +75,7 @@ export interface backendInterface {
         lastLoginWasSober: bigint;
         needsFollowUp: boolean;
     }>;
+    completeOnboarding(answers: OnboardingAnswers): Promise<PersistentUserProfileView>;
     getCallerUserProfile(): Promise<PersistentUserProfileView | null>;
     getCallerUserRole(): Promise<UserRole>;
     getLast14Days(): Promise<Array<AggregatedEntry>>;
@@ -92,9 +96,12 @@ export interface backendInterface {
     getUserProfile(user: Principal): Promise<PersistentUserProfileView | null>;
     getUserTimeZone(): Promise<string>;
     isCallerAdmin(): Promise<boolean>;
+    markAchievementAsShown(): Promise<void>;
     saveCallerUserProfile(profile: PersistentUserProfileView): Promise<void>;
+    setStreakTarget(newTarget: bigint): Promise<void>;
     submitCheckIn(entry: CheckInEntry): Promise<{
         date: bigint;
+        achievedStreakTarget: boolean;
         message: string;
         totalDrinks: bigint;
     }>;

@@ -1,11 +1,13 @@
 # Specification
 
 ## Summary
-**Goal:** Integrate the Usergeek tracking snippet into the frontend HTML entry point and configure it with the provided API key.
+**Goal:** Add a full-screen streak achievement flow that triggers once per streak target, forces the user to pick a next target, and persists completion state via a profile flag.
 
 **Planned changes:**
-- Add the standard Usergeek tracking snippet to `frontend/index.html` (in `<head>` or immediately before `</body>`), preserving existing metadata and the `/src/main.tsx` module script tag.
-- Configure the snippet to use API key `014402022A34A8626A6C124A58B6197F` exactly as provided.
-- Verify the app loads the Usergeek tracking script at runtime without console errors caused by the integration.
+- Backend: Add persistent profile flag `achievementShownForThisTarget: boolean` to the profile view and ensure it round-trips through existing profile read/save APIs.
+- Frontend: Trigger a full-screen achievement overlay when `streakCurrent >= streakTarget` and `achievementShownForThisTarget` is false, both immediately after a qualifying daily check-in and on next login for already-eligible users.
+- Frontend: Implement the first full-screen panel with brutal dark styling (grainy black background, neon pink accents, slow pulse/glow behind the streak number), short dark-humor message (≤3 lines), and a single required action button labeled exactly “SHUT UP!” (no close icon).
+- Frontend: After “SHUT UP!”, show a second full-screen panel titled exactly “Do you want to try again?” requiring selection of one target option: “2 days”, “5 days”, “1 week”, “2 weeks”, “1 month”.
+- Frontend + Backend: On target selection, persist the new `streakTarget` (same field used by onboarding), reset `achievementShownForThisTarget` to `false`, close the overlay with a fade transition back to the dashboard, and extend existing streak reset behavior so it also resets when the user achieves their target.
 
-**User-visible outcome:** When the app is run in a browser, the Usergeek tracking script loads successfully and starts tracking based on the configured API key.
+**User-visible outcome:** When a user reaches/exceeds their streak target, they are blocked by a brutal full-screen achievement sequence until they press “SHUT UP!” and choose a new streak target; the flow reliably reappears until completed and then stays gone for that target.

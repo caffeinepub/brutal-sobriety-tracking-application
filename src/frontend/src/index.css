@@ -144,6 +144,15 @@
     }
   }
   
+  /* Neon outline effect for buttons */
+  .neon-outline {
+    box-shadow: 0 0 20px oklch(var(--primary) / 0.3);
+  }
+  
+  .neon-outline:hover {
+    box-shadow: 0 0 30px oklch(var(--primary) / 0.5);
+  }
+  
   /* Mobile-friendly text wrapping */
   .break-words {
     word-wrap: break-word;

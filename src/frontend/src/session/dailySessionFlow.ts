@@ -19,6 +19,7 @@ export enum ModalType {
 export interface SessionStatus {
   needsOnboarding: boolean;
   hasCompletedOnboarding: boolean;
+  needsDailyCheckIn: boolean;
   dailyCheckInsToday: number;
 }
 
@@ -31,12 +32,12 @@ export function resolveSessionPhase(status: SessionStatus): SessionPhase {
     return SessionPhase.ONBOARDING;
   }
 
-  // First check-in of the day
-  if (status.dailyCheckInsToday === 0) {
+  // First check-in of the day (needsDailyCheckIn is true)
+  if (status.needsDailyCheckIn || status.dailyCheckInsToday === 0) {
     return SessionPhase.FIRST_CHECKIN;
   }
 
-  // Subsequent check-ins same day
+  // Subsequent check-ins same day (already checked in at least once today)
   if (status.dailyCheckInsToday >= 1) {
     return SessionPhase.REPEAT_CHECKIN;
   }

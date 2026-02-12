@@ -8,455 +8,318 @@ import {
   useCheckOnboardingAndCheckInStatus,
   useSubmitCheckIn,
   useSubmitFollowUpCheckIn,
+  useSubmitRepeatCheckIn,
+  useSetStreakTarget,
+  useMarkAchievementAsShown,
 } from '../hooks/useQueries';
 import Header from '../components/Header';
 import DailyCheckInDialog from '../components/DailyCheckInDialog';
 import RepeatCheckInDialog from '../components/RepeatCheckInDialog';
 import DataLoggedDialog from '../components/DataLoggedDialog';
 import BrutalFriendDialog from '../components/BrutalFriendDialog';
-import FollowUpCheckInDialog from '../components/FollowUpCheckInDialog';
-import BeerDonationDialog from '../components/BeerDonationDialog';
+import ProgressStats from '../components/ProgressStats';
+import DrinksChart from '../components/DrinksChart';
 import UnifiedHeaderSection from '../components/UnifiedHeaderSection';
-import ChanceOfDrinkingCard from '../components/ChanceOfDrinkingCard';
-import CycleWindowCard from '../components/CycleWindowCard';
 import SoberDaysSection from '../components/SoberDaysSection';
 import StatusIndicatorsSection from '../components/StatusIndicatorsSection';
-import { SiX, SiFacebook, SiInstagram } from 'react-icons/si';
-import { Heart, Plus, Beer } from 'lucide-react';
-import { parseSobrietyDurationToDays } from '../utils/sobrietyDuration';
-import { Mood } from '../backend';
-import {
-  SessionPhase,
-  ModalType,
-  SessionFlowState,
-  resolveSessionPhase,
-  createInitialFlowState,
-  startSessionFlow,
-  advanceToNextModal,
-  setBrutalFriendMessage,
-  setDataLoggedMessage,
-  endSessionFlow,
-} from '../session/dailySessionFlow';
-import { toast } from 'sonner';
+import ChanceOfDrinkingCard from '../components/ChanceOfDrinkingCard';
+import CycleWindowCard from '../components/CycleWindowCard';
+import BeerDonationDialog from '../components/BeerDonationDialog';
+import StreakAchievementOverlay from '../components/StreakAchievementOverlay';
 import { Button } from '@/components/ui/button';
-
-// Convert onboarding answer to numeric average drinks per week
-function getAverageDrinksPerWeek(drinksPerWeek: string): number {
-  switch (drinksPerWeek) {
-    case 'Less than 5':
-      return 3;
-    case '5–10':
-      return 7;
-    case 'More than 10':
-      return 15;
-    case "I just drink, don't count...":
-      return 20;
-    default:
-      return 0;
-  }
-}
-
-const DONATION_ADDRESS = 'wzq6l-62ys7-tvqe5-5wvtd-d256x-knbsv-c7vvd-cj4n6-rqztu-3guce-mqe';
+import { Beer } from 'lucide-react';
+import { toast } from 'sonner';
+import { parseSobrietyDurationToDays } from '../utils/sobrietyDuration';
+import { RepeatCheckInReason } from '../backend';
+import { trackEvent, trackPageView, getCheckInDedupeKey } from '../utils/usergeek';
+import {
+  hasDailyCheckInAutoOpenedToday,
+  markDailyCheckInAutoOpened,
+} from '../utils/dailyCheckInAutoOpenGuards';
 
 export default function Dashboard() {
   const { identity, clear } = useInternetIdentity();
   const queryClient = useQueryClient();
-  const { data: chartData = [] } = useGetLast14Days();
-  const { data: metrics } = useGetProgressMetrics();
-  const { data: userProfile, isLoading: profileLoading, isFetched: profileFetched } = useGetCallerUserProfile();
-  const { data: status, isLoading: statusLoading, isFetched: statusFetched } = useCheckOnboardingAndCheckInStatus();
 
-  const submitCheckIn = useSubmitCheckIn();
-  const submitFollowUpCheckIn = useSubmitFollowUpCheckIn();
+  const { data: status } = useCheckOnboardingAndCheckInStatus();
+  const { data: progressMetrics } = useGetProgressMetrics();
+  const { data: last14Days } = useGetLast14Days();
+  const { data: userProfile } = useGetCallerUserProfile();
 
-  // Centralized session flow state
-  const [flowState, setFlowState] = useState<SessionFlowState>(createInitialFlowState());
-  
-  // Track if we've already auto-started a flow this session to prevent loops
-  const hasAutoStartedRef = useRef(false);
+  const { mutate: submitCheckIn, isPending: isSubmittingCheckIn } = useSubmitCheckIn();
+  const { mutate: submitFollowUpCheckIn, isPending: isSubmittingFollowUp } = useSubmitFollowUpCheckIn();
+  const { mutate: submitRepeatCheckIn, isPending: isSubmittingRepeat } = useSubmitRepeatCheckIn();
+  const { mutate: setStreakTarget, isPending: isSettingTarget } = useSetStreakTarget();
+  const { mutate: markAchievementAsShown } = useMarkAchievementAsShown();
 
-  // Beer donation dialog state
-  const [showBeerDonation, setShowBeerDonation] = useState(false);
+  const [dailyCheckInOpen, setDailyCheckInOpen] = useState(false);
+  const [repeatCheckInOpen, setRepeatCheckInOpen] = useState(false);
+  const [dataLoggedOpen, setDataLoggedOpen] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [beerDialogOpen, setBeerDialogOpen] = useState(false);
+  const [achievementOverlayOpen, setAchievementOverlayOpen] = useState(false);
 
-  // Parse sobriety duration from user profile, fallback to 30
-  const soberDaysTarget = parseSobrietyDurationToDays(
-    userProfile?.onboardingAnswers?.sobrietyDuration
-  );
+  const checkInSubmittedRef = useRef(false);
+  const repeatAutoOpenedRef = useRef(false);
+  const suppressFollowUpAutoOpenRef = useRef(false);
+
+  // Track page view for daily check-in dialog
+  useEffect(() => {
+    if (dailyCheckInOpen) {
+      trackPageView('Daily Check-In', '/dashboard/check-in');
+    }
+  }, [dailyCheckInOpen]);
+
+  // Check if achievement overlay should be shown
+  useEffect(() => {
+    if (
+      userProfile &&
+      progressMetrics &&
+      !achievementOverlayOpen &&
+      !dailyCheckInOpen &&
+      !repeatCheckInOpen
+    ) {
+      const currentStreak = Number(progressMetrics.currentStreak);
+      const streakTarget = Number(userProfile.streakTarget);
+      const achievementShown = userProfile.achievementShownForThisTarget;
+
+      if (currentStreak >= streakTarget && !achievementShown) {
+        setAchievementOverlayOpen(true);
+        // Mark achievement as shown immediately to prevent re-showing on refresh
+        markAchievementAsShown();
+      }
+    }
+  }, [userProfile, progressMetrics, achievementOverlayOpen, dailyCheckInOpen, repeatCheckInOpen, markAchievementAsShown]);
+
+  // Auto-open DailyCheckInDialog: once per local day per session when needsDailyCheckIn is true
+  useEffect(() => {
+    if (
+      status?.needsDailyCheckIn &&
+      !dailyCheckInOpen &&
+      !repeatCheckInOpen &&
+      !achievementOverlayOpen &&
+      !hasDailyCheckInAutoOpenedToday()
+    ) {
+      setDailyCheckInOpen(true);
+      markDailyCheckInAutoOpened();
+    }
+  }, [status, dailyCheckInOpen, repeatCheckInOpen, achievementOverlayOpen]);
+
+  // Auto-open RepeatCheckInDialog: on subsequent same-day logins (unlimited follow-ups)
+  // Only auto-open once per mount/session, and not immediately after first check-in submission
+  useEffect(() => {
+    if (
+      status &&
+      !status.needsDailyCheckIn &&
+      !status.needsOnboarding &&
+      Number(status.dailyCheckInsToday) >= 1 &&
+      !dailyCheckInOpen &&
+      !repeatCheckInOpen &&
+      !achievementOverlayOpen &&
+      !repeatAutoOpenedRef.current &&
+      !suppressFollowUpAutoOpenRef.current
+    ) {
+      setRepeatCheckInOpen(true);
+      repeatAutoOpenedRef.current = true;
+    }
+  }, [status, dailyCheckInOpen, repeatCheckInOpen, achievementOverlayOpen]);
 
   const handleLogout = async () => {
     await clear();
     queryClient.clear();
   };
 
-  // Initialize session flow on load - only auto-start FIRST_CHECKIN
-  useEffect(() => {
-    // Wait for all required data to be available
-    if (!identity || !status || !profileFetched || !statusFetched) {
-      console.log('Waiting for data:', { identity: !!identity, status: !!status, profileFetched, statusFetched });
-      return;
-    }
+  const handleDailyCheckInSubmit = async (data: { sober: boolean; drinks: number; mood: any }) => {
+    if (checkInSubmittedRef.current) return;
 
-    // Don't restart if a flow is already active
-    if (flowState.isActive) {
-      console.log('Flow already active, skipping initialization');
-      return;
-    }
+    const now = Date.now();
+    const entry = {
+      date: BigInt(now),
+      sober: data.sober,
+      drinks: BigInt(data.drinks),
+      mood: data.mood,
+    };
 
-    // Don't auto-start if we've already done so this session
-    if (hasAutoStartedRef.current) {
-      console.log('Already auto-started a flow this session, skipping');
-      return;
-    }
+    checkInSubmittedRef.current = true;
 
-    console.log('Resolving session phase with status:', status, 'profile:', userProfile);
+    // Suppress follow-up auto-open immediately after first check-in submission
+    suppressFollowUpAutoOpenRef.current = true;
 
-    const phase = resolveSessionPhase({
-      needsOnboarding: status.needsOnboarding,
-      hasCompletedOnboarding: userProfile?.hasCompletedOnboarding ?? false,
-      dailyCheckInsToday: Number(status.dailyCheckInsToday),
-    });
+    submitCheckIn(entry, {
+      onSuccess: (result) => {
+        setFeedbackMessage(result.message);
+        setDailyCheckInOpen(false);
+        setDataLoggedOpen(true);
 
-    console.log('Resolved session phase:', phase);
+        // Track daily check-in event
+        if (identity && userProfile) {
+          const userId = identity.getPrincipal().toString();
+          const dedupeKey = getCheckInDedupeKey(userId, now);
 
-    // Only auto-start FIRST_CHECKIN flow
-    // REPEAT_CHECKIN must be triggered manually by the user
-    if (phase === SessionPhase.FIRST_CHECKIN) {
-      const newFlowState = startSessionFlow(phase);
-      console.log('Starting session flow:', newFlowState);
-      
-      // Mark that we've auto-started
-      hasAutoStartedRef.current = true;
-      
-      // Delay modal opening slightly to avoid flash
-      setTimeout(() => {
-        setFlowState(newFlowState);
-      }, 300);
-    }
-  }, [identity, status, userProfile, profileFetched, statusFetched, flowState.isActive]);
+          const currentStreak = progressMetrics?.currentStreak ? Number(progressMetrics.currentStreak) : 0;
+          const sobrietyGoal = userProfile.onboardingAnswers?.sobrietyDuration || '30 days';
+          const streakTarget = parseSobrietyDurationToDays(sobrietyGoal);
+          const streakRatio = streakTarget > 0 ? currentStreak / streakTarget : 0;
 
-  // Manual check-in trigger
-  const handleManualCheckIn = () => {
-    if (!status || !profileFetched) return;
-
-    const phase = resolveSessionPhase({
-      needsOnboarding: status.needsOnboarding,
-      hasCompletedOnboarding: userProfile?.hasCompletedOnboarding ?? false,
-      dailyCheckInsToday: Number(status.dailyCheckInsToday),
-    });
-
-    // Start the appropriate flow (FIRST_CHECKIN or REPEAT_CHECKIN)
-    if (phase === SessionPhase.FIRST_CHECKIN || phase === SessionPhase.REPEAT_CHECKIN) {
-      const newFlowState = startSessionFlow(phase);
-      setFlowState(newFlowState);
-    }
-  };
-
-  // Beer donation button handler
-  const handleBeerDonation = async () => {
-    try {
-      await navigator.clipboard.writeText(DONATION_ADDRESS);
-      toast.success('Address copied! Now go buy that beer. 🍺', {
-        description: 'Thanks for supporting brutal honesty.',
-      });
-    } catch (error) {
-      // Fallback: show dialog if clipboard fails
-      setShowBeerDonation(true);
-    }
-  };
-
-  // Daily Check-In handlers
-  const handleDailyCheckInSubmit = async (data: { sober: boolean; drinks: number; mood: Mood }) => {
-    try {
-      const result = await submitCheckIn.mutateAsync({
-        date: BigInt(Date.now()),
-        sober: data.sober,
-        drinks: BigInt(data.drinks),
-        mood: data.mood,
-      });
-
-      // Generate feedback message
-      let feedbackMsg = '';
-      if (data.sober) {
-        const messages = [
-          'Not bad. Keep it up.',
-          "Another day. Don't get cocky.",
-          'Good. Now do it again tomorrow.',
-          'Solid. But streaks can break.',
-          'Nice. Stay sharp.',
-        ];
-        feedbackMsg = messages[Math.floor(Math.random() * messages.length)];
-      } else {
-        // Get average drinks per week from onboarding answers
-        if (userProfile?.onboardingAnswers?.drinksPerWeek) {
-          const avgPerWeek = getAverageDrinksPerWeek(userProfile.onboardingAnswers.drinksPerWeek);
-          const avgPerDay = avgPerWeek / 7;
-
-          if (data.drinks < avgPerDay) {
-            const messages = [
-              'Less than usual. Progress is progress.',
-              "Below average. That's something.",
-              'Fewer drinks. Small wins count.',
-              'Reducing. Keep that trend going.',
-            ];
-            feedbackMsg = messages[Math.floor(Math.random() * messages.length)];
-          } else {
-            const messages = [
-              'Honesty noted. Try harder tomorrow.',
-              "At least you're tracking it.",
-              'Not great. But you showed up.',
-              "Tomorrow's a new chance. Use it.",
-            ];
-            feedbackMsg = messages[Math.floor(Math.random() * messages.length)];
-          }
-        } else {
-          const messages = [
-            'Honesty noted. Try harder tomorrow.',
-            "At least you're tracking it.",
-            'Not great. But you showed up.',
-            "Tomorrow's a new chance. Use it.",
-            'One day at a time. Keep going.',
-          ];
-          feedbackMsg = messages[Math.floor(Math.random() * messages.length)];
+          trackEvent('Daily Check-In', {
+            sober: data.sober,
+            drinks: data.drinks,
+            mood: data.mood ? (data.mood as any).__kind__ : 'none',
+            repeatCheckIns: Number(status?.dailyCheckInsToday || 0),
+            currentStreak,
+            streakTarget,
+            streakRatio: Math.round(streakRatio * 100) / 100,
+          }, dedupeKey);
         }
-      }
 
-      // Update flow state with messages and advance
-      let updatedState = setDataLoggedMessage(flowState, feedbackMsg);
-      updatedState = setBrutalFriendMessage(updatedState, result.message);
-      updatedState = advanceToNextModal(updatedState);
-      setFlowState(updatedState);
-    } catch (error) {
-      toast.error('Submission failed. Try again.');
-      console.error(error);
-    }
+        // Check if achievement was reached
+        if (result.achievedStreakTarget) {
+          // Close data logged dialog and show achievement overlay after a brief delay
+          setTimeout(() => {
+            setDataLoggedOpen(false);
+            setAchievementOverlayOpen(true);
+          }, 1500);
+        }
+
+        setTimeout(() => {
+          checkInSubmittedRef.current = false;
+        }, 2000);
+      },
+      onError: (error: any) => {
+        console.error('Check-in submission failed:', error);
+        toast.error('Failed to submit check-in. Please try again.');
+        checkInSubmittedRef.current = false;
+        suppressFollowUpAutoOpenRef.current = false;
+      },
+    });
   };
 
-  // Repeat Check-In handlers - now handles sobriety follow-up
-  const handleRepeatCheckInStillSober = () => {
-    // User is still sober, just close the modal
-    toast.success('Good. Staying consistent.');
-    const nextState = endSessionFlow(flowState);
-    setFlowState(nextState);
+  const handleRepeatStillSober = () => {
+    // User is still sober, just submit a repeat check-in with reflection reason
+    submitRepeatCheckIn(RepeatCheckInReason.reflection, {
+      onSuccess: () => {
+        setFeedbackMessage('Thanks for checking in again. Stay strong!');
+        setRepeatCheckInOpen(false);
+        setDataLoggedOpen(true);
+      },
+      onError: (error: any) => {
+        console.error('Repeat check-in failed:', error);
+        toast.error('Failed to submit repeat check-in. Please try again.');
+      },
+    });
   };
 
-  const handleRepeatCheckInDrank = async (drinks: number) => {
-    try {
-      const feedbackMessage = await submitFollowUpCheckIn.mutateAsync(BigInt(drinks));
-
-      const messages = [
-        'Noted. Keep tracking.',
-        'Logged. Stay aware.',
-        'Recorded. One step at a time.',
-        'Updated. Keep going.',
-      ];
-      const feedbackMsg = messages[Math.floor(Math.random() * messages.length)];
-
-      // Update flow state with messages and advance
-      let updatedState = setDataLoggedMessage(flowState, feedbackMsg);
-      updatedState = setBrutalFriendMessage(updatedState, feedbackMessage);
-      updatedState = advanceToNextModal(updatedState);
-      setFlowState(updatedState);
-    } catch (error) {
-      toast.error('Submission failed. Try again.');
-      console.error(error);
-    }
+  const handleRepeatDrank = async (drinks: number) => {
+    // User drank, submit follow-up check-in
+    submitFollowUpCheckIn(BigInt(drinks), {
+      onSuccess: (message) => {
+        setFeedbackMessage(message);
+        setRepeatCheckInOpen(false);
+        setDataLoggedOpen(true);
+      },
+      onError: (error: any) => {
+        console.error('Follow-up check-in failed:', error);
+        toast.error('Failed to submit follow-up. Please try again.');
+      },
+    });
   };
 
-  // Follow-Up Check-In handlers (outside main flow)
-  const [showFollowUp, setShowFollowUp] = useState(false);
-
-  const handleFollowUpRemainedSober = () => {
-    toast.success('Good. Staying consistent.');
-    setShowFollowUp(false);
+  const handleSelectNewTarget = (targetDays: number) => {
+    setStreakTarget(targetDays, {
+      onSuccess: () => {
+        setAchievementOverlayOpen(false);
+        toast.success(`New target set: ${targetDays} days`);
+      },
+      onError: (error: any) => {
+        console.error('Failed to set new target:', error);
+        toast.error('Failed to set new target. Please try again.');
+      },
+    });
   };
 
-  const handleFollowUpHadMoreDrinks = async (drinks: number) => {
-    try {
-      await submitFollowUpCheckIn.mutateAsync(BigInt(drinks));
-      toast.success("Added to today's total. At least you're honest.");
-      setShowFollowUp(false);
-    } catch (error) {
-      toast.error('Submission failed. Try again.');
-      console.error(error);
-    }
-  };
+  const soberDaysTarget = userProfile?.onboardingAnswers?.sobrietyDuration
+    ? parseSobrietyDurationToDays(userProfile.onboardingAnswers.sobrietyDuration)
+    : 30;
 
-  // Modal close handlers
-  const handleModalClose = () => {
-    // Advance to next modal in queue
-    const nextState = advanceToNextModal(flowState);
-    setFlowState(nextState);
-  };
-
-  const handleDataLoggedClose = () => {
-    // Advance to next modal (Brutal Friend)
-    const nextState = advanceToNextModal(flowState);
-    setFlowState(nextState);
-  };
-
-  const handleBrutalFriendClose = () => {
-    // End session flow
-    const nextState = endSessionFlow(flowState);
-    setFlowState(nextState);
-  };
-
-  // Determine if manual check-in button should be shown
-  const showManualCheckIn = !flowState.isActive && profileFetched && statusFetched && !profileLoading && !statusLoading;
-
-  // Always render a valid UI, even if identity is temporarily unavailable
-  if (!identity) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="mb-4 h-12 w-12 animate-spin rounded-sm border-4 border-primary border-t-transparent mx-auto"></div>
-          <p className="text-muted-foreground font-bold uppercase tracking-wider">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  const currentStreak = progressMetrics?.currentStreak ? Number(progressMetrics.currentStreak) : 0;
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="min-h-screen bg-background">
       <Header onLogout={handleLogout} />
 
-      {/* Centralized Session Flow Modals */}
+      <main className="container mx-auto px-4 py-8 max-w-7xl">
+        <UnifiedHeaderSection />
+
+        <SoberDaysSection
+          metrics={progressMetrics}
+          soberDaysTarget={soberDaysTarget}
+        />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Button
+              onClick={() => setDailyCheckInOpen(true)}
+              className="flex-1 bg-primary text-primary-foreground font-black uppercase tracking-wider border-2 border-primary hover:bg-primary/90 transition-colors px-6 py-6 text-base shadow-brutal"
+            >
+              Check In
+            </Button>
+            <Button
+              onClick={() => setBeerDialogOpen(true)}
+              variant="outline"
+              className="flex-1 sm:flex-initial font-black uppercase tracking-wider border-2 hover:bg-accent transition-colors px-6 py-6 text-base shadow-brutal"
+            >
+              <Beer className="mr-2 h-5 w-5" />
+              Buy Me a Beer
+            </Button>
+          </div>
+        </div>
+
+        <ProgressStats />
+
+        <StatusIndicatorsSection chartData={last14Days || []} />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <ChanceOfDrinkingCard />
+          <CycleWindowCard />
+        </div>
+
+        <DrinksChart data={last14Days || []} />
+      </main>
+
       <DailyCheckInDialog
-        open={flowState.currentModal === ModalType.DAILY_CHECKIN}
-        onClose={handleModalClose}
+        open={dailyCheckInOpen}
+        onClose={() => setDailyCheckInOpen(false)}
         onSubmit={handleDailyCheckInSubmit}
-        isSubmitting={submitCheckIn.isPending}
+        isSubmitting={isSubmittingCheckIn}
       />
 
       <RepeatCheckInDialog
-        open={flowState.currentModal === ModalType.REPEAT_CHECKIN}
-        onClose={handleModalClose}
-        onStillSober={handleRepeatCheckInStillSober}
-        onDrank={handleRepeatCheckInDrank}
-        isSubmitting={submitFollowUpCheckIn.isPending}
+        open={repeatCheckInOpen}
+        onClose={() => setRepeatCheckInOpen(false)}
+        onStillSober={handleRepeatStillSober}
+        onDrank={handleRepeatDrank}
+        isSubmitting={isSubmittingFollowUp || isSubmittingRepeat}
       />
 
       <DataLoggedDialog
-        open={flowState.currentModal === ModalType.DATA_LOGGED}
-        onClose={handleDataLoggedClose}
-        message={flowState.dataLoggedMessage}
-        variant={flowState.phase === SessionPhase.FIRST_CHECKIN ? 'primary' : 'secondary'}
+        open={dataLoggedOpen}
+        onClose={() => setDataLoggedOpen(false)}
+        message={feedbackMessage}
+        variant="primary"
       />
 
-      <BrutalFriendDialog
-        open={flowState.currentModal === ModalType.BRUTAL_FRIEND}
-        onClose={handleBrutalFriendClose}
-        message={flowState.brutalFriendMessage}
-      />
-
-      {/* Follow-up Check-in Dialog (outside main flow, not currently triggered) */}
-      <FollowUpCheckInDialog
-        open={showFollowUp}
-        onClose={() => setShowFollowUp(false)}
-        onRemainedSober={handleFollowUpRemainedSober}
-        onHadMoreDrinks={handleFollowUpHadMoreDrinks}
-        isSubmitting={submitFollowUpCheckIn.isPending}
-      />
-
-      {/* Beer Donation Dialog */}
       <BeerDonationDialog
-        open={showBeerDonation}
-        onClose={() => setShowBeerDonation(false)}
-        address={DONATION_ADDRESS}
+        open={beerDialogOpen}
+        onClose={() => setBeerDialogOpen(false)}
+        address="bc1qh8405z7yfvmhph3mfeqpk8yke5qvmuegnzjhx3"
       />
 
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 flex-1 max-w-7xl">
-        {/* Manual Check-In and Beer Donation Buttons */}
-        {showManualCheckIn && (
-          <div className="mb-4 sm:mb-6 flex flex-wrap gap-2 sm:gap-3">
-            <Button
-              onClick={handleManualCheckIn}
-              size="lg"
-              className="flex-1 sm:flex-initial bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-wider shadow-neon-sm"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              CHECK IN
-            </Button>
-            <Button
-              onClick={handleBeerDonation}
-              size="lg"
-              variant="outline"
-              className="flex-1 sm:flex-initial border-2 border-primary hover:bg-primary hover:text-primary-foreground font-bold uppercase tracking-wider shadow-neon-sm"
-            >
-              <Beer className="w-5 h-5 mr-2" />
-              BUY ME A BEER
-            </Button>
-          </div>
-        )}
-
-        {/* Redesigned Dashboard Layout */}
-        <div className="space-y-3 sm:space-y-4 lg:space-y-6">
-          {/* 1. Unified Header Section - Brutal Friend Feedback + Motivation Button */}
-          <UnifiedHeaderSection />
-
-          {/* 2. Side-by-Side Cards Row - Chance of Drinking Tomorrow + Cycle Window */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-            <ChanceOfDrinkingCard />
-            <CycleWindowCard />
-          </div>
-
-          {/* 3. Sober Days Section - Streak and Target */}
-          <SoberDaysSection metrics={metrics} soberDaysTarget={soberDaysTarget} />
-
-          {/* 4. Status Indicators Section - Weekly Average, Yesterday, Today */}
-          <StatusIndicatorsSection chartData={chartData} />
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t-2 border-border py-4 sm:py-6 bg-card mt-auto">
-        <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
-            {/* Copyright */}
-            <div className="text-xs sm:text-sm text-muted-foreground font-mono text-center sm:text-left">
-              © 2026. Built with <Heart className="inline w-3 h-3 sm:w-4 sm:h-4 text-primary" /> using{' '}
-              <a
-                href="https://caffeine.ai"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:text-primary/80 transition-colors underline"
-              >
-                caffeine.ai
-              </a>
-            </div>
-
-            {/* Social Links */}
-            <div className="flex gap-3 sm:gap-4">
-              <a
-                href="https://twitter.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary transition-colors"
-                aria-label="Twitter"
-              >
-                <SiX className="w-4 h-4 sm:w-5 sm:h-5" />
-              </a>
-              <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary transition-colors"
-                aria-label="Facebook"
-              >
-                <SiFacebook className="w-4 h-4 sm:w-5 sm:h-5" />
-              </a>
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary transition-colors"
-                aria-label="Instagram"
-              >
-                <SiInstagram className="w-4 h-4 sm:w-5 sm:h-5" />
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <StreakAchievementOverlay
+        open={achievementOverlayOpen}
+        streakDays={currentStreak}
+        onSelectNewTarget={handleSelectNewTarget}
+        isSubmitting={isSettingTarget}
+      />
     </div>
   );
 }

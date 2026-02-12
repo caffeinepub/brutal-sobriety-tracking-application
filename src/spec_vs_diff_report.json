@@ -1,29 +1,104 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-12T12:57:39.840Z",
-  "summary": "REQ-1 appears implemented: the Usergeek standard snippet is added to `frontend/index.html` and configured with the provided API key, while keeping the existing `/src/main.tsx` module script tag intact. No other requested changes are evident; two additional non-requested metadata/state files were modified.",
-  "missing_requirements": [],
-  "hallucinated_features": [
+  "generatedAt": "2026-02-12T16:38:56.504Z",
+  "summary": "Backend adds the new profile fields (including a migration) and frontend adds a full-screen overlay component plus dashboard trigger logic. However, the current trigger/flag behavior appears to mark the achievement as shown immediately on open (preventing the required reappearance on refresh until target selection), and there is no clear evidence the streak-reset behavior was extended to also reset on achieving the target. The diff also includes multiple unrelated UI/auth/branding changes that were not requested and may violate the constraint to avoid modifying existing flows beyond what’s necessary.",
+  "missing_requirements": [
     {
-      "description": "Updated project tracking/state metadata unrelated to adding the Usergeek snippet.",
-      "reason": "The BuildRequest only asks to integrate the Usergeek snippet in `frontend/index.html` and does not mention modifying project state files.",
+      "id": "REQ-2",
+      "requirement": "Achievement overlay must reappear on refresh/reopen while eligible until the user completes the flow by selecting a new target (i.e., do not permanently suppress it just by opening it).",
+      "reason": "Dashboard logic appears to mark the achievement as shown immediately when opening the overlay, which would prevent the overlay from showing again on refresh even if the user has not selected a new target yet.",
       "evidence": [
-        "project_state.json"
+        "frontend/src/pages/Dashboard.tsx (\"Mark achievement as shown immediately to prevent re-showing on refresh\")"
       ]
     },
     {
-      "description": "Modified a generated/summary file describing many frontend files and features not requested by the BuildRequest.",
-      "reason": "The BuildRequest does not request updating any file summaries or describing unrelated UI/auth/dashboard changes; only `frontend/index.html` needs modification for the snippet.",
+      "id": "REQ-4",
+      "requirement": "Second full-screen panel must force the user to select a target; if they dismiss via refresh/navigation, the flow must reappear until a selection is made.",
+      "reason": "Because the achievement is apparently marked as shown immediately upon opening (before selection), the flow would not reliably reappear after refresh/navigation if the user never selects a new target.",
       "evidence": [
-        "frontend-file-summaries.txt"
+        "frontend/src/pages/Dashboard.tsx (immediate mark-as-shown comment/logic)",
+        "frontend/src/components/StreakAchievementOverlay.tsx (flow depends on parent; no persistence guard shown)"
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "requirement": "Extend existing streak reset mechanism so it also resets when the user achieves their target (in addition to resetting when the user had a drink), without breaking existing check-in flows.",
+      "reason": "No diff evidence shows backend or check-in logic changes that reset the streak upon reaching/exceeding the target; the provided backend changes are type/migration additions and do not demonstrate the reset behavior update.",
+      "evidence": [
+        "backend/main.mo (truncated; shows new fields/types but no shown change to streak reset logic)"
+      ]
+    },
+    {
+      "id": "REQ-1",
+      "requirement": "`achievementShownForThisTarget` must round-trip through backend profile APIs (`getCallerUserProfile` + `saveCallerUserProfile`).",
+      "reason": "While the types were updated to include `achievementShownForThisTarget`, the diff excerpt does not show the implementations of `getCallerUserProfile` / `saveCallerUserProfile` being updated to read/write the new field.",
+      "evidence": [
+        "backend/main.mo (truncated; type additions visible, but API method implementations not shown)"
       ]
     }
   ],
-  "confidence": 0.86,
+  "hallucinated_features": [
+    {
+      "description": "Changed app authentication/loading behavior to prevent onboarding flicker, added loading spinner and error handling changes in App.tsx.",
+      "reason": "Not requested by any REQ; constraints explicitly warn against breaking/modifying onboarding flow behavior beyond what’s necessary for the achievement experience.",
+      "evidence": [
+        "frontend-file-summaries.txt (frontend/src/App.tsx summary)"
+      ]
+    },
+    {
+      "description": "Redesigned/modified LoginPage layout, headlines, tagline, feature cards, and button label (\"CONTINUE\").",
+      "reason": "Not requested; unrelated to the streak achievement flow.",
+      "evidence": [
+        "frontend-file-summaries.txt (frontend/src/pages/LoginPage.tsx summary)"
+      ]
+    },
+    {
+      "description": "Modified application Header branding/styling (Skull icon, neon title, layout changes).",
+      "reason": "Not requested; unrelated to the achievement flow.",
+      "evidence": [
+        "frontend-file-summaries.txt (frontend/src/components/Header.tsx summary)"
+      ]
+    },
+    {
+      "description": "Multiple dashboard card/component styling/behavior changes (ProgressStats, MoodIndicator, DrinksChart) beyond adding the achievement overlay.",
+      "reason": "Not requested; constraints say not to redesign existing dashboard cards/metrics beyond what is necessary.",
+      "evidence": [
+        "frontend-file-summaries.txt (frontend/src/components/ProgressStats.tsx summary)",
+        "frontend-file-summaries.txt (frontend/src/components/MoodIndicator.tsx summary)",
+        "frontend-file-summaries.txt (frontend/src/components/DrinksChart.tsx summary)"
+      ]
+    },
+    {
+      "description": "Changed daily check-in and follow-up dialog control/auto-open behavior (made fully controlled, removed internal chaining logic).",
+      "reason": "Not requested and risks violating the constraint to not break/modify existing daily check-in logic beyond what’s necessary to add the achievement experience.",
+      "evidence": [
+        "frontend-file-summaries.txt (frontend/src/components/DailyCheckInDialog.tsx summary)",
+        "frontend-file-summaries.txt (frontend/src/components/FollowUpCheckInDialog.tsx summary)"
+      ]
+    },
+    {
+      "description": "Modified Brutal Friend feedback dialog/card behavior and introduced/expanded a large set of fallback quotes plus UserGeek tracking on feedback display.",
+      "reason": "Not requested; constraints say not to modify the brutal friend feedback system beyond what’s necessary for the achievement experience.",
+      "evidence": [
+        "frontend-file-summaries.txt (frontend/src/components/BrutalFriendDialog.tsx summary)",
+        "frontend-file-summaries.txt (frontend/src/components/BrutalFriendFeedbackCard.tsx summary)",
+        "backend/main.mo (brutalFriendFeedbackMessages list shown/truncated)"
+      ]
+    }
+  ],
+  "confidence": 0.72,
   "changed_files": [
+    "backend/main.mo",
+    "backend/migration.mo",
     "frontend-file-summaries.txt",
-    "frontend/index.html",
+    "frontend/src/components/OnboardingFlow.tsx",
+    "frontend/src/components/StreakAchievementOverlay.tsx",
+    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/index.css",
+    "frontend/src/pages/Dashboard.tsx",
+    "frontend/src/utils/streakTargets.ts",
+    "frontend/tailwind.config.js",
     "project_state.json"
   ]
 }
