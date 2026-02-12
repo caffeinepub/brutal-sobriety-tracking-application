@@ -1,25 +1,21 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Clean frontend rebuild support for fresh deploy",
+  "title": "Usergeek tracking snippet integration (frontend-only)",
   "requirements": [
     {
-      "id": "REQ-8",
-      "summary": "Add frontend-side clean rebuild tooling/docs to ensure builds run from a fresh state without stale artifacts.",
+      "id": "REQ-1",
+      "summary": "Integrate the standard Usergeek tracking snippet into the HTML entry point and configure it with the provided API key.",
       "acceptanceCriteria": [
-        "A new deployment completes successfully without the prior failure state recurring due to stale build artifacts.",
-        "The deployed app loads and reaches the normal routing flow (login/onboarding/dashboard) without crashing."
+        "The Usergeek tracking snippet is added to the frontend entry file `frontend/index.html` (e.g., inside `<head>` or immediately before `</body>`), without breaking existing metadata or the `/src/main.tsx` module script tag.",
+        "The snippet is configured to use API key `014402022A34A8626A6C124A58B6197F` exactly as provided.",
+        "After building and running the app, the browser loads the Usergeek tracking script without console errors attributable to the integration."
       ],
       "file_operations": [
         {
-          "path": "frontend/scripts/clean-rebuild.sh",
-          "operation": "create",
-          "description": "Create a reproducible frontend clean script that removes common local build artifacts/caches (e.g., dist output, tool caches under frontend/, and lock-step reinstall triggers) to support running the deployment from a fresh build state. Keep it focused on cleanup only (no new product features)."
-        },
-        {
-          "path": "frontend/CLEAN_REBUILD.md",
-          "operation": "create",
-          "description": "Add concise frontend-focused instructions for performing a clean rebuild as part of a redeploy (what to delete, when to reinstall dependencies, and how to validate the app reaches normal routing flow). Do not add new features; document only the clean rebuild/redeploy procedure."
+          "path": "frontend/index.html",
+          "operation": "modify",
+          "description": "Insert the official Usergeek tracking snippet into the HTML document (preferably within <head> or immediately before </body>) and configure it to use API key `014402022A34A8626A6C124A58B6197F`. Ensure existing metadata/social tags remain intact and do not alter or remove the existing `<script type=\"module\" src=\"/src/main.tsx\"></script>`."
         }
       ]
     }

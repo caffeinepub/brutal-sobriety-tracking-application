@@ -1,11 +1,11 @@
 # Specification
 
 ## Summary
-**Goal:** Perform a clean rebuild and redeploy so the application deploys successfully from a fresh build state without stale artifacts.
+**Goal:** Integrate the Usergeek tracking snippet into the frontend HTML entry point and configure it with the provided API key.
 
 **Planned changes:**
-- Clear prior build artifacts/caches and perform a clean rebuild of the project.
-- Redeploy the canisters from the fresh build output and verify the deployment succeeds.
-- Validate the deployed app loads and reaches the normal routing flow (login/onboarding/dashboard) without crashing.
+- Add the standard Usergeek tracking snippet to `frontend/index.html` (in `<head>` or immediately before `</body>`), preserving existing metadata and the `/src/main.tsx` module script tag.
+- Configure the snippet to use API key `014402022A34A8626A6C124A58B6197F` exactly as provided.
+- Verify the app loads the Usergeek tracking script at runtime without console errors caused by the integration.
 
-**User-visible outcome:** A successfully redeployed app that loads normally and proceeds through login/onboarding/dashboard without deployment-related failures caused by stale build artifacts.
+**User-visible outcome:** When the app is run in a browser, the Usergeek tracking script loads successfully and starts tracking based on the configured API key.

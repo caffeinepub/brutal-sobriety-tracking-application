@@ -2,11 +2,10 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-perform-a-clean-rebuild-of-the-project-and-redeploy-the-canisters-ensuring-all-prior-build-artifacts-caches-are-cleared-so-the-deployment-runs-from-a-fresh-build-state",
-      "featureTitle": "Perform a clean rebuild of the project and redeploy the canisters, ensuring all prior build artifacts/caches are cleared so the deployment runs from a fresh build state.",
+      "featureId": "feature-add-the-usergeek-tracking-snippet-to-the-frontend-html-entry-point-and-configure-it-with-api-key-014402022a34a8626a6c124a58b6197f",
+      "featureTitle": "Add the Usergeek tracking snippet to the frontend HTML entry point and configure it with API key `014402022A34A8626A6C124A58B6197F`.",
       "files": [
-        "frontend/CLEAN_REBUILD.md",
-        "frontend/scripts/clean-rebuild.sh"
+        "frontend/index.html"
       ],
       "components": [
         "authorization@4.0.0",
@@ -17,7 +16,7 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-8"
+        "REQ-1"
       ],
       "confidence": "high"
     }

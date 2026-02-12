@@ -1,33 +1,34 @@
 {
   "kind": "build_request",
-  "title": "Clean rebuild and redeploy after failed deployment",
-  "priority": "high",
+  "title": "Integrate Usergeek tracking snippet into frontend with provided API key",
+  "priority": "normal",
   "requirements": [
     {
-      "id": "REQ-8",
-      "text": "Perform a clean rebuild of the project and redeploy the canisters, ensuring all prior build artifacts/caches are cleared so the deployment runs from a fresh build state.",
-      "target": "unknown",
+      "id": "REQ-1",
+      "text": "Add the Usergeek tracking snippet to the frontend HTML entry point and configure it with API key `014402022A34A8626A6C124A58B6197F`.",
+      "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-6"
+          "msg-7"
         ],
         "quotes": [
-          "clean rebuild"
+          "Please add the Usergeek tracking snippet to my frontend in the correct file and configure it with my API key = 014402022A34A8626A6C124A58B6197F"
         ]
       },
       "acceptanceCriteria": [
-        "A new deployment completes successfully without the prior failure state recurring due to stale build artifacts.",
-        "The deployed app loads and reaches the normal routing flow (login/onboarding/dashboard) without crashing."
+        "The Usergeek tracking snippet is added to the frontend entry file `frontend/index.html` (e.g., inside `<head>` or immediately before `</body>`), without breaking existing metadata or the `/src/main.tsx` module script tag.",
+        "The snippet is configured to use API key `014402022A34A8626A6C124A58B6197F` exactly as provided.",
+        "After building and running the app, the browser loads the Usergeek tracking script without console errors attributable to the integration."
       ]
     }
   ],
   "constraints": [
-    "Do not introduce new product features; this request is only for a clean rebuild/redeploy.",
-    "Respect the existing single-actor Motoko backend architecture and the frontend immutable paths list."
+    "Do not modify any files under frontend/src/components/ui or other immutable paths listed in SYSTEM_CONTEXT.",
+    "Do not introduce any backend changes; integration must be frontend-only."
   ],
   "nonGoals": [
-    "Implementing any of the listed new feature requests (missed-day popup, milestones, custom domain mapping, XP tracker).",
-    "Refactoring or changing backend schemas/state unless required strictly to complete a clean rebuild."
+    "Adding new analytics events beyond the standard Usergeek snippet.",
+    "Implementing a consent banner or cookie preferences UI."
   ],
   "imageRequirements": {
     "required": [],

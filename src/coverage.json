@@ -1,7 +1,7 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-04T15:13:57.770Z",
+  "generatedAt": "2026-02-12T12:57:39.843Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
@@ -11,28 +11,25 @@
     "implemented": 1,
     "items": [
       {
-        "id": "REQ-8",
-        "summary": "Perform a clean rebuild of the project and redeploy the canisters, ensuring all prior build artifacts/caches are cleared so the deployment runs from a fresh build state.",
+        "id": "REQ-1",
+        "summary": "Add the Usergeek tracking snippet to the frontend HTML entry point and configure it with API key `014402022A34A8626A6C124A58B6197F`.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/scripts/clean-rebuild.sh",
-          "frontend/CLEAN_REBUILD.md"
+          "frontend/index.html"
         ],
         "matchedFiles": [
-          "frontend/scripts/clean-rebuild.sh",
-          "frontend/CLEAN_REBUILD.md"
+          "frontend/index.html"
         ]
       }
     ]
   },
   "changedFiles": [
-    "backend/main.mo",
     "build-request.json",
+    "caffeine.lock.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/CLEAN_REBUILD.md",
-    "frontend/scripts/clean-rebuild.sh",
+    "frontend/index.html",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",
